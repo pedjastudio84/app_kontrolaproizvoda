@@ -17,7 +17,7 @@ if (session_status() == PHP_SESSION_NONE) { session_start(); }
             <div class="btn-group me-2" role="group">
                 <?php
                 $mozeDaMenja = (isset($_SESSION['user_uloga']) && $_SESSION['user_uloga'] === 'administrator') || 
-                              (isset($_SESSION['user_uloga']) && $_SESSION['user_uloga'] === 'kontrolor' && isset($evidencija['kontrolor_id']) && $_SESSION['user_id'] == $evidencija['kontrolor_id']);
+                                (isset($_SESSION['user_uloga']) && $_SESSION['user_uloga'] === 'kontrolor' && isset($evidencija['kontrolor_id']) && $_SESSION['user_id'] == $evidencija['kontrolor_id']);
                 
                 if ($mozeDaMenja):
                 ?>
@@ -28,7 +28,7 @@ if (session_status() == PHP_SESSION_NONE) { session_start(); }
                 <a href="?action=generate_single_report&id=<?php echo $evidencija['id']; ?>" class="btn btn-success" target="_blank" title="Generiši PDF">
             <i class="fa-solid fa-file-pdf me-1"></i>PDF</a>
                 </div>
-             <div class="btn-group" role="group">
+              <div class="btn-group" role="group">
                 <a href="javascript:history.back()" class="btn btn-secondary"><i class="fa-solid fa-chevron-left me-1"></i>Nazad</a>
             </div>
         </div>
@@ -69,18 +69,38 @@ if (session_status() == PHP_SESSION_NONE) { session_start(); }
         <div class="card-header">Rezultati Ček-Liste</div>
         <div class="card-body">
             <?php if (!empty($evidencija['rezultati'])): ?>
-                <?php foreach($evidencija['rezultati'] as $rezultat): ?>
-                    <div class="p-2 border-bottom d-flex justify-content-between align-items-center">
-                        <span><strong><?php echo htmlspecialchars($rezultat['opis_karakteristike_snapshot'] ?? 'Karakteristika ' . $rezultat['karakteristika_plana_id']); ?></strong></span>
-                        <?php
-                            $rezultat_prikaz = $rezultat['rezultat_ok_nok'] ?? $rezultat['rezultat_tekst'];
-                            $badge_class = 'bg-secondary';
-                            if ($rezultat_prikaz === 'OK') $badge_class = 'bg-success';
-                            if ($rezultat_prikaz === 'NOK') $badge_class = 'bg-danger';
-                        ?>
-                        <span class="badge <?php echo $badge_class; ?> fs-6"><?php echo htmlspecialchars($rezultat_prikaz); ?></span>
+                <?php
+                $trenutnaGrupa = null;
+                foreach($evidencija['rezultati'] as $rezultat):
+                    if ($trenutnaGrupa !== $rezultat['naziv_grupe']) {
+                        if ($trenutnaGrupa !== null) { echo '</div>'; } // Zatvori prethodni card-body
+                        $trenutnaGrupa = $rezultat['naziv_grupe'];
+                        echo '<h5 class="mt-3"><strong>Grupa: ' . htmlspecialchars($trenutnaGrupa) . '</strong></h5><div class="list-group list-group-flush">';
+                    }
+                ?>
+                    <div class="list-group-item d-flex justify-content-between align-items-center flex-wrap">
+                        <div class="me-auto">
+                            <span><?php echo htmlspecialchars($rezultat['opis_karakteristike_snapshot'] ?? 'Karakteristika ' . $rezultat['karakteristika_plana_id']); ?></span>
+                            <?php if (!empty($rezultat['kontrolni_alat_nacin'])): ?>
+                                <span class="d-block text-muted small mt-1">
+                                    <i class="fa-solid fa-wrench me-1"></i><strong>Alat/Način:</strong> <?php echo htmlspecialchars($rezultat['kontrolni_alat_nacin']); ?>
+                                </span>
+                            <?php endif; ?>
+                            </div>
+                        <div class="ms-3">
+                            <?php
+                                $rezultat_prikaz = $rezultat['rezultat_ok_nok'] ?? $rezultat['rezultat_tekst'];
+                                $badge_class = 'bg-secondary';
+                                if ($rezultat_prikaz === 'OK') $badge_class = 'bg-success';
+                                if ($rezultat_prikaz === 'NOK') $badge_class = 'bg-danger';
+                            ?>
+                            <span class="badge <?php echo $badge_class; ?> fs-6"><?php echo htmlspecialchars($rezultat_prikaz); ?></span>
+                        </div>
                     </div>
-                <?php endforeach; ?>
+                <?php 
+                endforeach; 
+                if ($trenutnaGrupa !== null) { echo '</div>'; } // Zatvori poslednji card-body
+                ?>
             <?php else: ?>
                 <p class="text-muted">Nema sačuvanih rezultata za ček-listu.</p>
             <?php endif; ?>

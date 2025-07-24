@@ -123,6 +123,7 @@ class ReportController {
         $pdf->BilingualCell('Datum i vreme:', 'Date and time:', date('d.m.Y H:i:s', strtotime($record['datum_vreme_ispitivanja'])));
         $pdf->BilingualCell('Kontrolor:', 'Controller:', $record['kontrolor_puno_ime']);
         $pdf->BilingualCell('Vrsta kontrole:', 'Control type:', str_replace('_', ' ', ucfirst($record['vrsta_kontrole'])));
+        $pdf->BilingualCell('Broj plana kontrole:', 'Control Plan No.:', $record['broj_plana_kontrole'] ?? 'N/A');
         if (!empty($record['ime_kupca'])) {
             $pdf->BilingualCell('Ime Kupca:', 'Customer Name:', $record['ime_kupca']);
         }
@@ -135,6 +136,7 @@ class ReportController {
         $pdf->BilingualCell('Ident:', 'Ident:', $record['product_ident_sken']);
         $pdf->BilingualCell('Kataloška oznaka:', 'Catalog number:', $record['product_kataloska_oznaka_sken']);
         $pdf->BilingualCell('Serijski broj:', 'Serial Number:', $record['product_serijski_broj_sken']);
+
         $pdf->Ln(3);
         
         $pdf->SetFont('DejaVu', 'B', 12);

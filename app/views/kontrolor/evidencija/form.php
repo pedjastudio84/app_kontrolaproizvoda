@@ -51,7 +51,7 @@ $rezultati = $isEdit ? $evidencija['rezultati'] : ($formDataSource['rezultati'] 
     ?>
     <hr>
     
-    <form id="forma-za-evidenciju" method="POST" action="<?php echo rtrim(APP_URL, '/'); ?>/public/index.php?action=<?php echo $isEdit ? 'evidencija_update&id='.$evidencija['id'] : 'evidencija_store'; ?>" enctype="multipart/form-data">
+    <form id="forma-za-evidenciju" class="form-with-unsaved-check" method="POST" action="<?php echo rtrim(APP_URL, '/'); ?>/public/index.php?action=<?php echo $isEdit ? 'evidencija_update&id='.$evidencija['id'] : 'evidencija_store'; ?>" enctype="multipart/form-data">
         <input type="hidden" name="vrsta_kontrole" value="<?php echo htmlspecialchars($vrsta_kontrole); ?>">
         <input type="hidden" name="plan_kontrole_id" value="<?php echo htmlspecialchars($formDataSource['plan_kontrole_id'] ?? ($plan['id'] ?? '')); ?>">
     
@@ -106,6 +106,9 @@ $rezultati = $isEdit ? $evidencija['rezultati'] : ($formDataSource['rezultati'] 
                         ?>
                             <div class="mb-3 p-2 border-bottom">
                                 <label class="form-label d-block"><strong><?php echo $kar['redni_broj_karakteristike']; ?>. <?php echo htmlspecialchars($kar['opis_karakteristike']); ?></strong></label>
+                                <?php if (!empty($kar['kontrolni_alat_nacin'])): ?>
+                                    <span class="d-block text-muted small mt-1"><i class="fa-solid fa-wrench me-1"></i><strong>Alat/Način:</strong> <?php echo htmlspecialchars($kar['kontrolni_alat_nacin']); ?></span>
+                                <?php endif; ?>
                                 <input type="hidden" name="rezultati[<?php echo $kar['id']; ?>][opis_snapshot]" value="<?php echo htmlspecialchars($kar['opis_karakteristike']); ?>">
                                 <?php if ($kar['putanja_fotografije_opis']): ?>
                                     <div class="mb-2"><a href="#" class="view-image-link" data-bs-toggle="modal" data-bs-target="#imageModal" data-image-url="<?php echo rtrim(APP_URL, '/'); ?>/public/uploads/<?php echo htmlspecialchars($kar['putanja_fotografije_opis']); ?>"><img src="<?php echo rtrim(APP_URL, '/'); ?>/public/uploads/<?php echo htmlspecialchars($kar['putanja_fotografije_opis']); ?>" alt="Referentna slika" class="img-thumbnail" style="max-height: 150px; cursor: pointer;"></a></div>
@@ -145,7 +148,7 @@ $rezultati = $isEdit ? $evidencija['rezultati'] : ($formDataSource['rezultati'] 
     <input type="file" class="form-control w-100" name="masina_foto[]" accept="image/*">
     <div class="compression-feedback text-muted small mt-1"></div>
             </div>
-         
+        
         </div>
            <button type="button" id="add-photo-btn" class="btn btn-secondary mt-2"><i class="fa-solid fa-plus me-1"></i>Dodaj još jednu sliku</button>
             <p class="form-text text-muted">Maksimalno 5 fotografija. Fotografije će biti automatski kompresovane pre slanja.</p>
@@ -167,7 +170,7 @@ $rezultati = $isEdit ? $evidencija['rezultati'] : ($formDataSource['rezultati'] 
         </div>
 
         <div class="mt-4">
-            <a href="<?php echo rtrim(APP_URL, '/'); ?>/public/index.php?page=kontrolor_moji_zapisi" class="btn btn-danger"><i class="fa-solid fa-xmark me-1"></i>Odustani</a>
+            <a href="<?php echo rtrim(APP_URL, '/'); ?>/public/index.php?page=kontrolor_moji_zapisi" class="btn btn-danger cancel-link"><i class="fa-solid fa-xmark me-1"></i>Odustani</a>
             <button type="submit" id="submit-btn" class="btn btn-success"> <i class="fa-solid fa-floppy-disk me-1"></i><?php echo $isEdit ? 'Sačuvaj izmene' : 'Sačuvaj evidenciju'; ?></button>
         </div>
     </form>
@@ -269,7 +272,7 @@ document.addEventListener("DOMContentLoaded", function () {
         function stopScan() { if (animationFrameId) { cancelAnimationFrame(animationFrameId); animationFrameId = null; } if (stream) { stream.getTracks().forEach(track => track.stop()); stream = null; } video.srcObject = null; scannerContainer.style.display = 'none'; loadingMessage.textContent = "🎥 Kamera nije aktivna."; loadingMessage.style.display = 'block'; startScanBtn.style.display = 'inline-block'; stopScanBtn.style.display = 'none'; outputMessage.hidden = true; }
         async function startScan() { stopScan(); loadingMessage.textContent = "🎥 Pokrećem kameru..."; outputMessage.hidden = false; outputDataContainer.hidden = true; try { const mediaStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } }); stream = mediaStream; video.srcObject = mediaStream; video.setAttribute('playsinline', true); await video.play(); scannerContainer.style.display = 'block'; loadingMessage.style.display = 'none'; startScanBtn.style.display = 'none'; stopScanBtn.style.display = 'inline-block'; animationFrameId = requestAnimationFrame(tick); } catch (error) { console.error('Greška:', error); loadingMessage.textContent = `🚫 ${error.name}`; stopScan(); } }
         function tick() {
-  if (video.readyState === video.HAVE_ENOUGH_DATA) {
+    if (video.readyState === video.HAVE_ENOUGH_DATA) {
     canvasElement.height = video.videoHeight;
     canvasElement.width = video.videoWidth;
     canvas.drawImage(video, 0, 0, canvasElement.width, canvasElement.height);
@@ -288,30 +291,30 @@ document.addEventListener("DOMContentLoaded", function () {
 
       stopScan();
     }
-  }
+    }
 
-  if (stream) {
+    if (stream) {
     animationFrameId = requestAnimationFrame(tick);
-  }
+    }
 }
 
-       // function parseQRDataAndFillForm(data) { const fields = data.split('|'); if (fields.length >= 5) { identInput.value = fields[1] || ''; document.getElementById('naziv').value = fields[2] || ''; document.getElementById('kataloska_oznaka').value = fields[3] || ''; let serijski = fields[4] || ''; if (serijski.length > 9) { serijski = serijski.slice(-9); } document.getElementById('serijski_broj').value = serijski; identInput.dispatchEvent(new Event('change')); } else { alert("Format QR koda nije ispravan."); } }
+    // function parseQRDataAndFillForm(data) { const fields = data.split('|'); if (fields.length >= 5) { identInput.value = fields[1] || ''; document.getElementById('naziv').value = fields[2] || ''; document.getElementById('kataloska_oznaka').value = fields[3] || ''; let serijski = fields[4] || ''; if (serijski.length > 9) { serijski = serijski.slice(-9); } document.getElementById('serijski_broj').value = serijski; identInput.dispatchEvent(new Event('change')); } else { alert("Format QR koda nije ispravan."); } }
 
-     function parseQRDataAndFillForm(data) {
-  let identStartIndex = data.indexOf('GTP-');
-  if (identStartIndex === -1) {
+    function parseQRDataAndFillForm(data) {
+    let identStartIndex = data.indexOf('GTP-');
+    if (identStartIndex === -1) {
     identStartIndex = data.indexOf('GMM-');
-  }
+    }
 
-  if (identStartIndex === -1) {
+    if (identStartIndex === -1) {
     alert("QR kod ne sadrži validan Ident (GTP- ili GMM-).");
     return;
-  }
+    }
 
-  let trimmedData = data.substring(identStartIndex);
-  const fields = trimmedData.split('|');
+    let trimmedData = data.substring(identStartIndex);
+    const fields = trimmedData.split('|');
 
-  if (fields.length >= 4) {
+    if (fields.length >= 4) {
     document.getElementById('ident').value = fields[0] || '';
     document.getElementById('naziv').value = fields[1] || '';
     document.getElementById('kataloska_oznaka').value = fields[2] || '';
@@ -324,9 +327,9 @@ document.addEventListener("DOMContentLoaded", function () {
     document.getElementById('serijski_broj').value = serijski;
 
     document.getElementById('ident').dispatchEvent(new Event('change'));
-  } else {
+    } else {
     alert("Format QR koda nije ispravan (nedovoljno polja).");
-  }
+    }
 }
 
 
@@ -336,13 +339,45 @@ document.addEventListener("DOMContentLoaded", function () {
         unlockFieldsBtn.addEventListener('click', unlockFields);
         identInput.addEventListener('change', function() { if (this.value) { fetchChecklist(this.value); } });
         function fetchChecklist(ident) { checklistContainer.innerHTML = '<div class="alert alert-info">Učitavanje ček-liste...</div>'; const url = `<?php echo rtrim(APP_URL, '/'); ?>/public/index.php?action=get_plan_details&ident=${encodeURIComponent(ident)}`; fetch(url).then(response => { if (!response.ok) { return response.json().then(err => { throw new Error(err.error || `Greška servera`); }); } return response.json(); }).then(data => { if (data.error) { checklistContainer.innerHTML = `<div class="alert alert-danger">${data.error}</div>`; } else { document.getElementById('kataloska_oznaka').value = data.kataloska_oznaka || ''; document.getElementById('naziv').value = data.naziv_proizvoda || ''; buildChecklist(data); } }).catch(error => { checklistContainer.innerHTML = `<div class="alert alert-danger">Greška: ${error.message}</div>`; }); }
-        function buildChecklist(plan) { let html = `<h4>3. Ček Lista (Plan: ${plan.broj_plana_kontrole})</h4>`; html += `<input type="hidden" name="plan_kontrole_id" value="${plan.id}">`; if (!plan.grupe || plan.grupe.length === 0) { html += '<p class="text-muted">Ovaj plan nema definisanih grupa.</p>'; } else { plan.grupe.forEach((grupa) => { html += `<div class="card mb-3"><div class="card-header bg-light"><strong>Grupa: ${grupa.naziv_grupe}</strong></div><div class="card-body">`; if (!grupa.karakteristike || grupa.karakteristike.length === 0) { html += '<p class="text-muted">Ova grupa nema definisanih karakteristika.</p>'; } else { grupa.karakteristike.forEach((kar) => { html += `<div class="mb-3 p-2 border-bottom"><label class="form-label d-block"><strong>${kar.redni_broj_karakteristike}. ${kar.opis_karakteristike}</strong></label>`; html += `<input type="hidden" name="rezultati[${kar.id}][opis_snapshot]" value="${kar.opis_karakteristike.replace(/"/g, '&quot;')}">`; 
+        function buildChecklist(plan) { 
+            let html = `<h4>3. Ček Lista (Plan: ${plan.broj_plana_kontrole})</h4>`; 
+            html += `<input type="hidden" name="plan_kontrole_id" value="${plan.id}">`; 
+            if (!plan.grupe || plan.grupe.length === 0) { 
+                html += '<p class="text-muted">Ovaj plan nema definisanih grupa.</p>'; 
+            } else { 
+                plan.grupe.forEach((grupa) => { 
+                    html += `<div class="card mb-3"><div class="card-header bg-light"><strong>Grupa: ${grupa.naziv_grupe}</strong></div><div class="card-body">`; 
+                    if (!grupa.karakteristike || grupa.karakteristike.length === 0) { 
+                        html += '<p class="text-muted">Ova grupa nema definisanih karakteristika.</p>'; 
+                    } else { 
+                        grupa.karakteristike.forEach((kar) => { 
+                            html += `<div class="mb-3 p-2 border-bottom">
+                                        <label class="form-label d-block"><strong>${kar.redni_broj_karakteristike}. ${kar.opis_karakteristike}</strong></label>`;
+                            
+                            if (kar.kontrolni_alat_nacin) {
+                                html += `<span class="d-block text-muted small mt-1"><i class="fa-solid fa-wrench me-1"></i><strong>Alat/Način:</strong> ${kar.kontrolni_alat_nacin}</span>`;
+                            }
 
-           if (kar.putanja_fotografije_opis) {
+                            html += `<input type="hidden" name="rezultati[${kar.id}][opis_snapshot]" value="${kar.opis_karakteristike.replace(/"/g, '&quot;')}">`; 
+
+                            if (kar.putanja_fotografije_opis) {
                                 const imageUrl = `${APP_URL_BASE}/public/uploads/${kar.putanja_fotografije_opis}`;
                                 html += `<div class="mb-2"><a href="#" class="view-image-link" data-bs-toggle="modal" data-bs-target="#imageModal" data-image-url="${imageUrl}"><img src="${imageUrl}" alt="Referentna slika" class="img-thumbnail" style="max-height: 150px; cursor: pointer;"></a></div>`;
                             }
-             if (kar.vrsta_karakteristike === 'OK/NOK') { html += `<div class="form-check form-check-inline"><input class="form-check-input" type="radio" name="rezultati[${kar.id}][vrednost]" id="ok_${kar.id}" value="OK" required><label class="form-check-label" for="ok_${kar.id}">OK</label></div>`; html += `<div class="form-check form-check-inline"><input class="form-check-input" type="radio" name="rezultati[${kar.id}][vrednost]" id="nok_${kar.id}" value="NOK"><label class="form-check-label" for="nok_${kar.id}">NOK</label></div>`; } else if (kar.vrsta_karakteristike === 'TEKSTUALNI_OPIS') { html += `<textarea class="form-control mt-2" name="rezultati[${kar.id}][vrednost]" rows="2" placeholder="Unesite tekstualni opis..." required></textarea>`; } html += `</div>`; }); } html += `</div></div>`; }); } document.getElementById('checklist-kontejner').innerHTML = html; }
+                            if (kar.vrsta_karakteristike === 'OK/NOK') { 
+                                html += `<div class="form-check form-check-inline"><input class="form-check-input" type="radio" name="rezultati[${kar.id}][vrednost]" id="ok_${kar.id}" value="OK" required><label class="form-check-label" for="ok_${kar.id}">OK</label></div>`; 
+                                html += `<div class="form-check form-check-inline"><input class="form-check-input" type="radio" name="rezultati[${kar.id}][vrednost]" id="nok_${kar.id}" value="NOK"><label class="form-check-label" for="nok_${kar.id}">NOK</label></div>`; 
+                            } else if (kar.vrsta_karakteristike === 'TEKSTUALNI_OPIS') { 
+                                html += `<textarea class="form-control mt-2" name="rezultati[${kar.id}][vrednost]" rows="2" placeholder="Unesite tekstualni opis..." required></textarea>`; 
+                            } 
+                            html += `</div>`; 
+                        }); 
+                    } 
+                    html += `</div></div>`; 
+                }); 
+            } 
+            document.getElementById('checklist-kontejner').innerHTML = html; 
+        }
     }
     const addPhotoBtn = document.getElementById('add-photo-btn');
     if (addPhotoBtn) {
@@ -369,7 +404,7 @@ document.addEventListener("DOMContentLoaded", function () {
             if (photoInputsContainer.querySelectorAll('input[type="file"]').length >= maxPhotos) { this.disabled = true; }
         });
     }
-     const imageModalEl = document.getElementById('imageModal');
+    const imageModalEl = document.getElementById('imageModal');
     if (imageModalEl) {
         // Kreiramo Bootstrap Modal instancu samo jednom
         const imageModalInstance = new bootstrap.Modal(imageModalEl);

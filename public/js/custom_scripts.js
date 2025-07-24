@@ -49,7 +49,6 @@ $(document).ready(function() {
     /**********************************************************************************/
     /* DEO 2: LOGIKA ZA FORMU PLANA KONTROLE (centralizovano sa plan_kontrole_form.js)*/
     /**********************************************************************************/
-    // Kod unutar ovog 'if' bloka će se izvršiti samo ako na stranici postoji element sa ID-jem 'grupeAccordion'
     if ($('#grupeAccordion').length) {
         const grupeKontejner = document.getElementById('grupeAccordion');
         const placeholder = document.getElementById('prazna-lista-grupa');
@@ -164,30 +163,36 @@ $(document).ready(function() {
                 updateGroupOrder();
             }
         });
-
-        // Provera za nesačuvane izmene na formi plana kontrole
-        const formElement = $('#plan-kontrole-forma');
-        if (formElement.length) {
-            let initialFormData = formElement.serialize();
-            formElement.on('submit', function() {
-                $(window).off('beforeunload');
-            });
-            $('a.btn-secondary', formElement).on('click', function(event) {
-                let currentFormData = formElement.serialize();
-                if (initialFormData !== currentFormData) {
-                    if (!confirm('Imate nesačuvane izmene. Da li ste sigurni da želite da odustanete?')) {
-                        event.preventDefault();
-                    }
-                }
-            });
-            $(window).on('beforeunload', function(e) {
-                let currentFormData = formElement.serialize();
-                if (initialFormData !== currentFormData) {
-                    const confirmationMessage = 'Imate nesačuvane izmene. Da li ste sigurni da želite da napustite stranicu?';
-                    (e || window.event).returnValue = confirmationMessage;
-                    return confirmationMessage;
-                }
-            });
-        }
     }
+
+    /**************************************************************************/
+    /* DEO 3: UNIVERZALNA PROVERA ZA NESAČUVANE IZMENE NA BILO KOJOJ FORMI   */
+    /**************************************************************************/
+    $('.form-with-unsaved-check').each(function() {
+        const formElement = $(this);
+        let initialFormData = formElement.serialize();
+
+        formElement.on('submit', function() {
+            $(window).off('beforeunload');
+        });
+
+        // Tražimo dugme za odustajanje unutar forme koje ima klasu .cancel-link
+        $('.cancel-link', formElement).on('click', function(event) {
+            let currentFormData = formElement.serialize();
+            if (initialFormData !== currentFormData) {
+                if (!confirm('Imate nesačuvane izmene. Da li ste sigurni da želite da odustanete?')) {
+                    event.preventDefault();
+                }
+            }
+        });
+
+        $(window).on('beforeunload', function(e) {
+            let currentFormData = formElement.serialize();
+            if (initialFormData !== currentFormData) {
+                const confirmationMessage = 'Imate nesačuvane izmene. Da li ste sigurni da želite da napustite stranicu?';
+                (e || window.event).returnValue = confirmationMessage;
+                return confirmationMessage;
+            }
+        });
+    });
 });

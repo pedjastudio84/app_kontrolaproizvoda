@@ -50,7 +50,7 @@ class Evidencija {
 
                 foreach ($files['masina_foto']['name'] as $key => $name) {
                     if ($files['masina_foto']['error'][$key] === 0) {
-                         $datum = date('YmdHis');
+                        $datum = date('YmdHis');
                         $ident = preg_replace('/[^a-zA-Z0-9-]/', '', $data['ident']);
                         $kataloska = preg_replace('/[^a-zA-Z0-9-]/', '', $data['kataloska_oznaka']);
                         $serijski = preg_replace('/[^a-zA-Z0-9-]/', '', $data['serijski_broj']);
@@ -181,7 +181,15 @@ class Evidencija {
             return false;
         }
 
-        $sqlRezultati = "SELECT rke.*, kp.redni_broj_karakteristike, gkp.naziv_grupe FROM rezultati_karakteristika_evidencije rke LEFT JOIN karakteristike_plana kp ON rke.karakteristika_plana_id = kp.id LEFT JOIN grupe_karakteristika_plana gkp ON kp.grupa_karakteristika_id = gkp.id WHERE rke.evidencija_kontrole_id = :id ORDER BY gkp.redosled_prikaza ASC, kp.redni_broj_karakteristike ASC";
+        // --- POČETAK IZMENE ---
+        // U upit je dodat 'kp.kontrolni_alat_nacin' da povučemo podatak o alatu
+        $sqlRezultati = "SELECT rke.*, kp.redni_broj_karakteristike, kp.kontrolni_alat_nacin, gkp.naziv_grupe 
+                         FROM rezultati_karakteristika_evidencije rke 
+                         LEFT JOIN karakteristike_plana kp ON rke.karakteristika_plana_id = kp.id 
+                         LEFT JOIN grupe_karakteristika_plana gkp ON kp.grupa_karakteristika_id = gkp.id 
+                         WHERE rke.evidencija_kontrole_id = :id 
+                         ORDER BY gkp.redosled_prikaza ASC, kp.redni_broj_karakteristike ASC";
+        // --- KRAJ IZMENE ---
         
         $stmtRezultati = $this->db->prepare($sqlRezultati);
         $stmtRezultati->bindParam(':id', $id, PDO::PARAM_INT);
