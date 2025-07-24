@@ -38,13 +38,24 @@ $(document).ready(function() {
         });
     }
 
-    $('.alert-dismissible').each(function() {
-        const alert = this;
+    // IZMENA: Selektor sada obuhvata i .alert unutar .login-form
+    // kao i sve .alert-dismissible poruke na drugim stranicama.
+    $('.alert-dismissible, .login-form .alert').each(function() {
+        const alertElement = $(this);
         setTimeout(function() {
-            const bsAlert = new bootstrap.Alert(alert);
-            bsAlert.close();
-        }, 5000);
+            // Proveravamo da li Bootstrap Alert postoji pre nego što ga zatvorimo
+            if (bootstrap && bootstrap.Alert) {
+                const bsAlert = bootstrap.Alert.getOrCreateInstance(alertElement);
+                if (bsAlert) {
+                    bsAlert.close();
+                }
+            } else {
+                 // Ako Bootstrap nije dostupan, samo sakrivamo element
+                alertElement.fadeOut();
+            }
+        }, 3000); // 3 sekunde
     });
+
 
     /**********************************************************************************/
     /* DEO 2: LOGIKA ZA FORMU PLANA KONTROLE (centralizovano sa plan_kontrole_form.js)*/
@@ -195,4 +206,108 @@ $(document).ready(function() {
             }
         });
     });
+    
+    /* ================================================== */
+    /* === NOVI JAVASCRIPT KOD ZA ANIMACIJU POZADINE === */
+    /* ================================================== */
+
+    // Pokreni animaciju samo ako postoji canvas na stranici (tj. na login stranici)
+    const canvas = document.getElementById('particle-canvas');
+    if (canvas) {
+        const ctx = canvas.getContext('2d');
+        let particlesArray;
+
+        // Prilagodljive vrednosti
+        const config = {
+            particleColor: 'rgba(172, 22, 27, 0.7)',  /* Ažurirana boja čestica */
+            lineColor: 'rgba(172, 22, 27, 0.15)', /* Ažurirana boja linija */
+            particleAmount: 70, // Malo više čestica za svetlu pozadinu
+            defaultSpeed: 0.5,
+            variantSpeed: 0.5,
+            defaultRadius: 2,
+            variantRadius: 2,
+            linkRadius: 180,
+        };
+
+        // Postavljanje dimenzija canvasa
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        // Klasa za čestice
+        class Particle {
+            constructor() {
+                this.x = Math.random() * canvas.width;
+                this.y = Math.random() * canvas.height;
+                this.radius = config.defaultRadius + Math.random() * config.variantRadius;
+                this.speedX = (Math.random() * 2 - 1) * config.defaultSpeed;
+                this.speedY = (Math.random() * 2 - 1) * config.defaultSpeed;
+            }
+
+            // Crtanje čestice
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = config.particleColor;
+                ctx.fill();
+            }
+
+            // Ažuriranje pozicije čestice
+            update() {
+                this.x += this.speedX;
+                this.y += this.speedY;
+
+                if (this.x < 0 || this.x > canvas.width) this.speedX *= -1;
+                if (this.y < 0 || this.y > canvas.height) this.speedY *= -1;
+            }
+        }
+
+        // Inicijalizacija
+        function init() {
+            particlesArray = [];
+            for (let i = 0; i < config.particleAmount; i++) {
+                particlesArray.push(new Particle());
+            }
+        }
+
+        // Crtanje linija između bliskih čestica
+        function connectParticles() {
+            for (let i = 0; i < particlesArray.length; i++) {
+                for (let j = i; j < particlesArray.length; j++) {
+                    const dx = particlesArray[i].x - particlesArray[j].x;
+                    const dy = particlesArray[i].y - particlesArray[j].y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+
+                    if (distance < config.linkRadius) {
+                        ctx.beginPath();
+                        ctx.strokeStyle = config.lineColor;
+                        ctx.lineWidth = 0.5;
+                        ctx.moveTo(particlesArray[i].x, particlesArray[i].y);
+                        ctx.lineTo(particlesArray[j].x, particlesArray[j].y);
+                        ctx.stroke();
+                    }
+                }
+            }
+        }
+
+        // Glavna petlja animacije
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            for (const particle of particlesArray) {
+                particle.update();
+                particle.draw();
+            }
+            connectParticles();
+            requestAnimationFrame(animate);
+        }
+
+        // Event listener za promenu veličine prozora
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            init();
+        });
+
+        init();
+        animate();
+    }
 });
