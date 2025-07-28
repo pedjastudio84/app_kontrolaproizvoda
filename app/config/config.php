@@ -1,14 +1,26 @@
 <?php
 require_once '../app/helpers/view_helper.php';
-// Osnovna podešavanja aplikacije
+// --- POČETAK IZMENE: Dinamičko definisanje URL-a aplikacije ---
 
-// URL vaše aplikacije (prilagodite ako je potrebno)
-// Ako pristupate preko http://localhost/projects/app_kontrolaproizvoda/public/
-// onda je APP_URL http://localhost/projects/app_kontrolaproizvoda
-// Suffix /public/ će se obično rešavati kroz web server konfiguraciju (kasnije)
-// ili će se URL-ovi generisati tako da uključuju /public/ ako je neophodno.
-// Za sada, neka bude osnova do public foldera.
-define('APP_URL', 'https://192.168.0.2/projects/app_kontrolaproizvoda'); // Prilagodite vašoj putanji
+// Određujemo da li je protokol http ili https
+$protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' || $_SERVER['SERVER_PORT'] == 443) ? "https://" : "http://";
+
+// Uzimamo host (npr. localhost ili 172.20.10.32)
+$host = $_SERVER['HTTP_HOST'];
+
+// Dobijamo putanju do 'public' foldera
+$script_path = str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME']));
+
+// Uklanjamo '/public' sa kraja da bismo dobili osnovnu putanju projekta
+$base_path = preg_replace('/\/public$/', '', $script_path);
+
+// Sastavljamo pun URL. Ako je base_path koren ('/'), pretvaramo ga u prazan string.
+$app_base_url = $protocol . $host . ($base_path == '/' ? '' : $base_path);
+
+// Definišemo konstantu sa dinamički kreiranim URL-om
+define('APP_URL', $app_base_url);
+
+// --- KRAJ IZMENE ---
 
 // Naziv sajta/aplikacije
 define('SITE_NAME', 'Evidencija Kontrole Proizvoda');
