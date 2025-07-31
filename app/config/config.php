@@ -1,6 +1,4 @@
 <?php
-require_once '../app/helpers/view_helper.php';
-// --- POČETAK IZMENE: Dinamičko definisanje URL-a aplikacije ---
 
 // Određujemo da li je protokol http ili https
 $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' || $_SERVER['SERVER_PORT'] == 443) ? "https://" : "http://";
