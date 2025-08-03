@@ -6,10 +6,6 @@ class PlanKontrole {
         $this->db = $db;
     }
 
-    /**
-     * Dohvata ukupan broj svih planova kontrole.
-     * @return int
-     */
     public function getTotalCount() {
         try {
             return (int) $this->db->query("SELECT COUNT(id) FROM planovi_kontrole")->fetchColumn();
@@ -19,9 +15,6 @@ class PlanKontrole {
         }
     }
 
-    /**
-     * Dohvata sve planove kontrole sa paginacijom i pretragom.
-     */
     public function getAll($searchParams = [], $limit = 10, $offset = 0) {
         $sql = "SELECT pk.id, pk.broj_plana_kontrole, pk.ident_proizvoda, pk.kataloska_oznaka, pk.naziv_proizvoda, pk.kreiran_datuma, CONCAT(k.ime, ' ', k.prezime) as kreator_puno_ime FROM planovi_kontrole pk LEFT JOIN korisnici k ON pk.kreirao_korisnik_id = k.id";
         $whereClauses = [];
@@ -69,7 +62,9 @@ class PlanKontrole {
         $stmtGrupe->execute();
         $grupe = $stmtGrupe->fetchAll(PDO::FETCH_ASSOC);
         foreach ($grupe as $g_index => $grupa) {
-            $stmtKarakteristike = $this->db->prepare("SELECT * FROM karakteristike_plana WHERE grupa_karakteristika_id = :grupa_id ORDER BY redni_broj_karakteristike ASC");
+            // === JEDINA KLJUČNA IZMENA JE U OVOJ LINIJI ISPOD ===
+            $stmtKarakteristike = $this->db->prepare("SELECT * FROM karakteristike_plana WHERE grupa_karakteristika_id = :grupa_id ORDER BY pozicija ASC");
+            // === KRAJ IZMENE ===
             $stmtKarakteristike->bindParam(':grupa_id', $grupa['id'], PDO::PARAM_INT);
             $stmtKarakteristike->execute();
             $grupe[$g_index]['karakteristike'] = $stmtKarakteristike->fetchAll(PDO::FETCH_ASSOC);
@@ -90,13 +85,11 @@ class PlanKontrole {
 
     private function savePlanDetails($planId, $grupeData, $filesData) {
         if (!empty($grupeData)) {
-            // Sortiramo niz grupa na osnovu redosleda pre upisa u bazu
             usort($grupeData, function($a, $b) {
                 return ($a['redosled_prikaza'] ?? 999) <=> ($b['redosled_prikaza'] ?? 999);
             });
             
             foreach ($grupeData as $g_index => $grupa) {
-                // Koristimo vrednost redosleda iz forme
                 $redosled = isset($grupa['redosled_prikaza']) ? (int)$grupa['redosled_prikaza'] : $g_index;
                 
                 $sqlGrupa = "INSERT INTO grupe_karakteristika_plana (plan_kontrole_id, naziv_grupe, redosled_prikaza) VALUES (:plan_id, :naziv_grupe, :redosled)";
@@ -109,21 +102,29 @@ class PlanKontrole {
                         if (isset($filesData['grupe']['name'][$g_index]['karakteristike'][$k_index]['fotografija']) && $filesData['grupe']['error'][$g_index]['karakteristike'][$k_index]['fotografija'] == 0) {
                             $subDir = "karakteristike_planova/";
                             $uploadDir = UPLOADS_PATH . '/' . $subDir;
-
                             if (!is_dir($uploadDir)) {
                                 mkdir($uploadDir, 0775, true);
                             }
-                            
                             $fajlIme = time() . '_' . basename($filesData['grupe']['name'][$g_index]['karakteristike'][$k_index]['fotografija']);
                             $uploadFajl = $uploadDir . $fajlIme;
-
                             if (move_uploaded_file($filesData['grupe']['tmp_name'][$g_index]['karakteristike'][$k_index]['fotografija'], $uploadFajl)) {
                                 $putanjaFajla = $subDir . $fajlIme; 
                             }
                         }
-                         $sqlKarakteristika = "INSERT INTO karakteristike_plana (grupa_karakteristika_id, redni_broj_karakteristike, opis_karakteristike, putanja_fotografije_opis, vrsta_karakteristike, kontrolni_alat_nacin, velicina_uzorka) VALUES (:grupa_id, :redni_broj, :opis, :putanja_foto, :vrsta, :alat, :uzorak)";
+
+                        $sqlKarakteristika = "INSERT INTO karakteristike_plana (grupa_karakteristika_id, redni_broj_karakteristike, opis_karakteristike, putanja_fotografije_opis, vrsta_karakteristike, kontrolni_alat_nacin, velicina_uzorka, pozicija) VALUES (:grupa_id, :redni_broj, :opis, :putanja_foto, :vrsta, :alat, :uzorak, :pozicija)";
                         $stmtKarakteristika = $this->db->prepare($sqlKarakteristika);
-                        $stmtKarakteristika->execute(['grupa_id' => $grupaId, 'redni_broj' => $karakteristika['redni_broj_karakteristike'], 'opis' => $karakteristika['opis_karakteristike'], 'putanja_foto' => $putanjaFajla, 'vrsta' => $karakteristika['vrsta_karakteristike'], 'alat' => $karakteristika['kontrolni_alat_nacin'] ?? null, 'uzorak' => $karakteristika['velicina_uzorka'] ?? null]);
+                        $pozicija = isset($karakteristika['pozicija']) ? (int)$karakteristika['pozicija'] : $k_index;
+                        $stmtKarakteristika->execute([
+                            'grupa_id' => $grupaId, 
+                            'redni_broj' => $karakteristika['redni_broj_karakteristike'], 
+                            'opis' => $karakteristika['opis_karakteristike'], 
+                            'putanja_foto' => $putanjaFajla, 
+                            'vrsta' => $karakteristika['vrsta_karakteristike'], 
+                            'alat' => $karakteristika['kontrolni_alat_nacin'] ?? null, 
+                            'uzorak' => $karakteristika['velicina_uzorka'] ?? null,
+                            'pozicija' => $pozicija
+                        ]);
                     }
                 }
             }

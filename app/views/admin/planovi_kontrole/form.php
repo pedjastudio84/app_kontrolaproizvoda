@@ -49,7 +49,7 @@ $grupe = $formData['grupe'] ?? [];
                 </div>
                 <hr>
                 <h6>Karakteristike unutar grupe:</h6>
-                <div class="karakteristike-kontejner"></div>
+                <div class="karakteristike-kontejner karakteristike-sortable-kontejner"></div>
                 <button type="button" class="btn btn-primary btn-sm mt-2 dodaj-karakteristiku" data-grupa-index="__G_INDEX__">Dodaj Karakteristiku</button>
             </div>
         </div>
@@ -58,6 +58,10 @@ $grupe = $formData['grupe'] ?? [];
 
 <template id="karakteristika-template">
     <div class="row gx-2 mb-2 p-2 border rounded align-items-center karakteristika-red bg-light">
+        <div class="col-md-auto text-center" style="cursor: grab;" title="Promeni redosled">
+            <i class="fa-solid fa-grip-vertical text-muted"></i>
+            <input type="hidden" class="redosled-karakteristike" data-name="[karakteristike][__K_INDEX__][pozicija]" value="__K_INDEX__">
+        </div>
         <div class="col-md-1">
             <label class="form-label small">R.br.</label>
             <input type="number" class="form-control form-control-sm redni-broj-karakteristike" data-name="[karakteristike][__K_INDEX__][redni_broj_karakteristike]" readonly>
@@ -79,7 +83,7 @@ $grupe = $formData['grupe'] ?? [];
             <label class="form-label small">Kontrolni alat</label>
             <input type="text" class="form-control form-control-sm" data-name="[karakteristike][__K_INDEX__][kontrolni_alat_nacin]">
         </div>
-        <div class="col-md-2">
+        <div class="col-md-1">
             <label class="form-label small">Veličina uzorka</label>
             <input type="text" class="form-control form-control-sm" data-name="[karakteristike][__K_INDEX__][velicina_uzorka]">
         </div>
@@ -88,6 +92,7 @@ $grupe = $formData['grupe'] ?? [];
         </div>
     </div>
 </template>
+
 <div class="container-fluid">
     <nav aria-label="breadcrumb">
         <ol class="breadcrumb">
@@ -151,10 +156,14 @@ $grupe = $formData['grupe'] ?? [];
                                         </div>
                                         <hr>
                                         <h6>Karakteristike unutar grupe:</h6>
-                                        <div class="karakteristike-kontejner">
+                                        <div class="karakteristike-kontejner karakteristike-sortable-kontejner">
                                             <?php if (!empty($grupa['karakteristike'])): ?>
                                                 <?php foreach ($grupa['karakteristike'] as $k_index => $karakteristika): ?>
                                                     <div class="row gx-2 mb-2 p-2 border rounded align-items-center karakteristika-red bg-light">
+                                                        <div class="col-md-auto text-center" style="cursor: grab;" title="Promeni redosled">
+                                                            <i class="fa-solid fa-grip-vertical text-muted"></i>
+                                                            <input type="hidden" class="redosled-karakteristike" name="grupe[<?php echo $g_index; ?>][karakteristike][<?php echo $k_index; ?>][pozicija]" value="<?php echo htmlspecialchars($karakteristika['pozicija'] ?? $k_index); ?>">
+                                                        </div>
                                                         <div class="col-md-1"><label class="form-label small">R.br.</label><input type="number" class="form-control form-control-sm redni-broj-karakteristike" name="grupe[<?php echo $g_index; ?>][karakteristike][<?php echo $k_index; ?>][redni_broj_karakteristike]" value="<?php echo htmlspecialchars($karakteristika['redni_broj_karakteristike'] ?? ($k_index + 1)); ?>" readonly></div>
                                                         <div class="col-md-3">
                                                             <label class="form-label small">Opis <span class="text-danger">*</span></label>
@@ -164,7 +173,7 @@ $grupe = $formData['grupe'] ?? [];
                                                         </div>
                                                         <div class="col-md-2"><label class="form-label small">Vrsta <span class="text-danger">*</span></label><select class="form-select form-select-sm" name="grupe[<?php echo $g_index; ?>][karakteristike][<?php echo $k_index; ?>][vrsta_karakteristike]" required><option value="OK/NOK" <?php if(isset($karakteristika['vrsta_karakteristike']) && $karakteristika['vrsta_karakteristike'] === 'OK/NOK') echo 'selected'; ?>>OK/NOK</option><option value="TEKSTUALNI_OPIS" <?php if(isset($karakteristika['vrsta_karakteristike']) && $karakteristika['vrsta_karakteristike'] === 'TEKSTUALNI_OPIS') echo 'selected'; ?>>Tekstualni opis</option></select></div>
                                                         <div class="col-md-2"><label class="form-label small">Kontrolni alat</label><input type="text" class="form-control form-control-sm" name="grupe[<?php echo $g_index; ?>][karakteristike][<?php echo $k_index; ?>][kontrolni_alat_nacin]" value="<?php echo htmlspecialchars($karakteristika['kontrolni_alat_nacin'] ?? ''); ?>"></div>
-                                                        <div class="col-md-2"><label class="form-label small">Veličina uzorka</label><input type="text" class="form-control form-control-sm" name="grupe[<?php echo $g_index; ?>][karakteristike][<?php echo $k_index; ?>][velicina_uzorka]" value="<?php echo htmlspecialchars($karakteristika['velicina_uzorka'] ?? ''); ?>"></div>
+                                                        <div class="col-md-1"><label class="form-label small">Veličina uzorka</label><input type="text" class="form-control form-control-sm" name="grupe[<?php echo $g_index; ?>][karakteristike][<?php echo $k_index; ?>][velicina_uzorka]" value="<?php echo htmlspecialchars($karakteristika['velicina_uzorka'] ?? ''); ?>"></div>
                                                         <div class="col-md-1 d-flex align-items-end justify-content-center"><button type="button" class="btn btn-outline-danger btn-sm ukloni-karakteristiku">Ukloni</button></div>
                                                     </div>
                                                 <?php endforeach; ?>
