@@ -161,8 +161,8 @@ class PlanKontrole {
             
             $planId = $this->db->lastInsertId();
             
-            $stmtUpdateVersionGroup = $this->db->prepare("UPDATE planovi_kontrole SET verzija_grupa_id = :id WHERE id = :id");
-            $stmtUpdateVersionGroup->execute([':id' => $planId]);
+            $stmtUpdateVersionGroup = $this->db->prepare("UPDATE planovi_kontrole SET verzija_grupa_id = :group_id WHERE id = :plan_id");
+            $stmtUpdateVersionGroup->execute([':group_id' => $planId, ':plan_id' => $planId]);
             
             $this->savePlanDetails($planId, $grupeData, $filesData);
             

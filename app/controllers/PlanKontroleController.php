@@ -126,47 +126,59 @@ class PlanKontroleController {
     
     public function update($id) {
         $this->checkAdmin();
-        if ($_SERVER['REQUEST_METHOD'] !== 'POST') { exit('Neovlašćen pristup.'); }
-        
-        $planData = ['broj_plana_kontrole' => trim($_POST['broj_plana_kontrole'] ?? ''), 'ident_proizvoda' => trim($_POST['ident_proizvoda'] ?? ''), 'kataloska_oznaka' => trim($_POST['kataloska_oznaka'] ?? NULL), 'naziv_proizvoda' => trim($_POST['naziv_proizvoda'] ?? ''), 'broj_operacije' => trim($_POST['broj_operacije'] ?? NULL)];
-        $grupeData = $_POST['grupe'] ?? [];
-        if (is_array($grupeData)) { $grupeData = array_filter($grupeData, 'is_array'); }
-        
-        $errors = $this->validatePlanData($planData, $grupeData, true, $id);
-        if (!empty($errors)) {
-            $_SESSION['form_errors'] = $errors; $_SESSION['form_data'] = $_POST;
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        exit('Neovlašćen pristup.');
+    }
+    
+    $planData = [
+        'broj_plana_kontrole' => trim($_POST['broj_plana_kontrole'] ?? ''),
+        'ident_proizvoda' => trim($_POST['ident_proizvoda'] ?? ''),
+        'kataloska_oznaka' => trim($_POST['kataloska_oznaka'] ?? NULL),
+        'naziv_proizvoda' => trim($_POST['naziv_proizvoda'] ?? ''),
+        'broj_operacije' => trim($_POST['broj_operacije'] ?? NULL)
+    ];
+    $grupeData = $_POST['grupe'] ?? [];
+    if (is_array($grupeData)) {
+        $grupeData = array_filter($grupeData, 'is_array');
+    }
+    
+    // Validacija se sada radi uvek na isti način, pre provere akcije
+    $errors = $this->validatePlanData($planData, $grupeData, true, $id);
+    if (!empty($errors)) {
+        $_SESSION['form_errors'] = $errors;
+        $_SESSION['form_data'] = $_POST;
+        header('Location: ' . rtrim(APP_URL, '/') . '/public/index.php?page=admin_plan_edit&id=' . $id);
+        exit;
+    }
+
+    $action = $_POST['form_action'] ?? 'minor_edit';
+
+    if ($action === 'new_version') {
+        $napomena = trim($_POST['verzija_napomena'] ?? '');
+        if (empty($napomena)) {
+            $_SESSION['form_errors'] = ['Napomena o izmeni je obavezna prilikom kreiranja nove verzije.'];
+            $_SESSION['form_data'] = $_POST;
             header('Location: ' . rtrim(APP_URL, '/') . '/public/index.php?page=admin_plan_edit&id=' . $id);
             exit;
         }
-
-        $action = $_POST['form_action'] ?? 'minor_edit';
-
-        if ($action === 'new_version') {
-            $napomena = trim($_POST['verzija_napomena'] ?? '');
-            if (empty($napomena)) {
-                $_SESSION['form_errors'] = ['Napomena o izmeni je obavezna prilikom kreiranja nove verzije.'];
-                $_SESSION['form_data'] = $_POST;
-                header('Location: ' . rtrim(APP_URL, '/') . '/public/index.php?page=admin_plan_edit&id=' . $id);
-                exit;
-            }
-            $noviPlanId = $this->planKontroleModel->createNewVersion($id, $planData, $grupeData, $_FILES['grupe'] ?? [], $_SESSION['user_id'], $napomena);
-            if ($noviPlanId) {
-                $_SESSION['success_message'] = 'Uspešno je kreirana nova verzija plana kontrole.';
-                header('Location: ' . rtrim(APP_URL, '/') . '/public/index.php?page=admin_plan_show&id=' . $noviPlanId);
-            } else {
-                $_SESSION['error_message'] = 'Došlo je do greške prilikom kreiranja nove verzije.';
-                header('Location: ' . rtrim(APP_URL, '/') . '/public/index.php?page=admin_plan_edit&id=' . $id);
-            }
+        $noviPlanId = $this->planKontroleModel->createNewVersion($id, $planData, $grupeData, $_FILES['grupe'] ?? [], $_SESSION['user_id'], $napomena);
+        if ($noviPlanId) {
+            $_SESSION['success_message'] = 'Uspešno je kreirana nova verzija plana kontrole.';
+            header('Location: ' . rtrim(APP_URL, '/') . '/public/index.php?page=admin_plan_show&id=' . $noviPlanId);
         } else {
-            if ($this->planKontroleModel->updatePlan($id, $planData, $grupeData, $_FILES['grupe'] ?? [], $_SESSION['user_id'])) {
-                $_SESSION['success_message'] = 'Plan kontrole je uspešno ažuriran.';
-                header('Location: ' . rtrim(APP_URL, '/') . '/public/index.php?page=admin_plan_show&id=' . $id);
-            } else {
-                $_SESSION['error_message'] = 'Došlo je do greške prilikom ažuriranja baze.';
-                header('Location: ' . rtrim(APP_URL, '/') . '/public/index.php?page=admin_plan_edit&id=' . $id);
-            }
+            $_SESSION['error_message'] = 'Došlo je do greške prilikom kreiranja nove verzije.';
+            header('Location: ' . rtrim(APP_URL, '/') . '/public/index.php?page=admin_plan_edit&id=' . $id);
         }
-        exit;
+    } else { // 'minor_edit'
+        if ($this->planKontroleModel->updatePlan($id, $planData, $grupeData, $_FILES['grupe'] ?? [], $_SESSION['user_id'])) {
+            $_SESSION['success_message'] = 'Plan kontrole je uspešno ažuriran.';
+            header('Location: ' . rtrim(APP_URL, '/') . '/public/index.php?page=admin_plan_show&id=' . $id);
+        } else {
+            $_SESSION['error_message'] = 'Došlo je do greške prilikom ažuriranja baze.';
+            header('Location: ' . rtrim(APP_URL, '/') . '/public/index.php?page=admin_plan_edit&id=' . $id);
+        }
+    }
+    exit;
     }
 
     public function delete($id) {

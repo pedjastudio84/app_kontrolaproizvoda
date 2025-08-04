@@ -334,28 +334,28 @@ $(document).ready(function() {
         init();
         animate();
     }
-// === NOVI KOD ZA UPRAVLJANJE MODALOM ZA VERZIJE ===
-    const versionModalEl = document.getElementById('versionModal');
-    if (versionModalEl) {
-        const versionModal = new bootstrap.Modal(versionModalEl);
-        const confirmBtn = document.getElementById('confirmNewVersionButton');
-        const napomenaTextarea = document.getElementById('modal_verzija_napomena');
-        const hiddenNapomenaInput = document.getElementById('hidden_verzija_napomena');
-        const form = document.getElementById('plan-kontrole-forma');
-        const actionInput = document.getElementById('form_action');
+    
+    // === KOD ZA UPRAVLJANJE MODALOM ZA VERZIJE (ISPRAVLJENO) ===
+    const versionModalEl = $('#versionModal');
+    if (versionModalEl.length) {
+        // Koristimo jQuery za kačenje event-a, što je često pouzdanije
+        $('#confirmNewVersionButton').on('click', function() {
+            const napomenaTextarea = $('#modal_verzija_napomena');
+            const napomenaValue = napomenaTextarea.val().trim();
 
-        confirmBtn.addEventListener('click', function() {
-            const napomenaValue = napomenaTextarea.value.trim();
             if (napomenaValue === '') {
-                napomenaTextarea.classList.add('is-invalid');
-                return;
+                napomenaTextarea.addClass('is-invalid');
+                return; // Prekida se izvršavanje ako nema napomene
             }
-            napomenaTextarea.classList.remove('is-invalid');
+            napomenaTextarea.removeClass('is-invalid');
             
-            // Prebacujemo vrednosti u formu i šaljemo je
-            hiddenNapomenaInput.value = napomenaValue;
-            actionInput.value = 'new_version';
-            form.submit();
+            // Postavljamo vrednosti u skrivena polja
+            $('#hidden_verzija_napomena').val(napomenaValue);
+            $('#form_action').val('new_version');
+            
+            // Šaljemo formu
+            $('#plan-kontrole-forma').submit();
         });
     }
-});
+
+}); // OVA ZAGRADA JE KLJUČNA I ZATVARA GLAVNI $(document).ready()
