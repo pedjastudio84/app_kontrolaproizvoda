@@ -72,11 +72,13 @@ if (isset($_SESSION['error_message'])) {
             <tr>
                 <th>ID</th>
                 <th>Broj Plana</th>
+                <th>Verzija</th>
                 <th>Ident Proizvoda</th>
                 <th>Kataloška oznaka</th>
                 <th>Naziv Proizvoda</th>
                 <th>Kreirao</th>
                 <th>Kreiran</th>
+                <th>Poslednja Izmena</th>
                 <th>Akcije</th>
             </tr>
         </thead>
@@ -86,29 +88,40 @@ if (isset($_SESSION['error_message'])) {
                     <tr>
                         <td><?php echo htmlspecialchars($plan['id']); ?></td>
                         <td><?php echo htmlspecialchars($plan['broj_plana_kontrole']); ?></td>
+                        <td>ver.<?php echo htmlspecialchars($plan['verzija_broj']); ?></td>
                         <td><?php echo htmlspecialchars($plan['ident_proizvoda']); ?></td>
                         <td><?php echo htmlspecialchars($plan['kataloska_oznaka'] ?? '-'); ?></td>
                         <td><?php echo htmlspecialchars($plan['naziv_proizvoda']); ?></td>
                         <td><?php echo htmlspecialchars(trim($plan['kreator_puno_ime']) ?: 'N/A'); ?></td>
                         <td><?php echo htmlspecialchars(date('d.m.Y', strtotime($plan['kreiran_datuma']))); ?></td>
+                        <td>
+                            <?php 
+                            // Prikazujemo datum izmene samo ako se razlikuje od datuma kreiranja
+                            if (date('Y-m-d H:i', strtotime($plan['azuriran_datuma'])) != date('Y-m-d H:i', strtotime($plan['kreiran_datuma']))) {
+                                echo htmlspecialchars(date('d.m.Y H:i', strtotime($plan['azuriran_datuma'])));
+                            } else {
+                                echo '-';
+                            }
+                            ?>
+                        </td>
                        <td>
-    <div class="btn-group dropend">
-        <button class="btn btn-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-            <i class="fa-solid fa-bars"></i>
-        </button>
-        <ul class="dropdown-menu">
-            <li><a class="dropdown-item" href="<?php echo rtrim(APP_URL, '/'); ?>/public/index.php?page=admin_plan_show&id=<?php echo $plan['id']; ?>"><i class="fa-solid fa-eye me-2"></i>Pregledaj</a></li>
-            <li><a class="dropdown-item" href="<?php echo rtrim(APP_URL, '/'); ?>/public/index.php?page=admin_plan_edit&id=<?php echo $plan['id']; ?>"><i class="fa-solid fa-pen-to-square me-2"></i>Izmeni</a></li>
-            <li><a class="dropdown-item" href="<?php echo rtrim(APP_URL, '/'); ?>/public/index.php?page=admin_plan_copy&id=<?php echo $plan['id']; ?>"><i class="fa-solid fa-copy me-2"></i>Kopiraj</a></li>
-            </li>
-        </ul>
-    </div>
-    </td>
+                            <div class="btn-group dropend">
+                                <button class="btn btn-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <i class="fa-solid fa-bars"></i>
+                                </button>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" href="<?php echo rtrim(APP_URL, '/'); ?>/public/index.php?page=admin_plan_show&id=<?php echo $plan['id']; ?>"><i class="fa-solid fa-eye me-2"></i>Pregledaj</a></li>
+                                    <li><a class="dropdown-item" href="<?php echo rtrim(APP_URL, '/'); ?>/public/index.php?page=admin_plan_edit&id=<?php echo $plan['id']; ?>"><i class="fa-solid fa-pen-to-square me-2"></i>Izmeni</a></li>
+                                    <li><a class="dropdown-item" href="<?php echo rtrim(APP_URL, '/'); ?>/public/index.php?page=admin_plan_copy&id=<?php echo $plan['id']; ?>"><i class="fa-solid fa-copy me-2"></i>Kopiraj</a></li>
+                                    </li>
+                                </ul>
+                            </div>
+                        </td>
                     </tr>
                 <?php endforeach; ?>
             <?php else: ?>
                 <tr>
-                    <td colspan="8" class="text-center">Nema rezultata za zadate kriterijume pretrage.</td>
+                    <td colspan="10" class="text-center">Nema rezultata za zadate kriterijume pretrage.</td>
                 </tr>
             <?php endif; ?>
         </tbody>

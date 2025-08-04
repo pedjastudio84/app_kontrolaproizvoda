@@ -135,7 +135,8 @@ class PlanKontroleController {
         'ident_proizvoda' => trim($_POST['ident_proizvoda'] ?? ''),
         'kataloska_oznaka' => trim($_POST['kataloska_oznaka'] ?? NULL),
         'naziv_proizvoda' => trim($_POST['naziv_proizvoda'] ?? ''),
-        'broj_operacije' => trim($_POST['broj_operacije'] ?? NULL)
+        'broj_operacije' => trim($_POST['broj_operacije'] ?? NULL),
+        'verzija_napomena' => trim($_POST['verzija_napomena_edit'] ?? NULL)
     ];
     $grupeData = $_POST['grupe'] ?? [];
     if (is_array($grupeData)) {

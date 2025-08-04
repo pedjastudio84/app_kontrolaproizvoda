@@ -16,7 +16,20 @@ class PlanKontrole {
     }
 
     public function getAll($searchParams = [], $limit = 10, $offset = 0) {
-        $sql = "SELECT pk.id, pk.broj_plana_kontrole, pk.ident_proizvoda, pk.kataloska_oznaka, pk.naziv_proizvoda, pk.kreiran_datuma, CONCAT(k.ime, ' ', k.prezime) as kreator_puno_ime FROM planovi_kontrole pk LEFT JOIN korisnici k ON pk.kreirao_korisnik_id = k.id WHERE pk.status = 'aktivan'";
+        $sql = "SELECT 
+                    pk.id, 
+                    pk.broj_plana_kontrole, 
+                    pk.verzija_broj, 
+                    pk.ident_proizvoda, 
+                    pk.kataloska_oznaka, 
+                    pk.naziv_proizvoda, 
+                    pk.kreiran_datuma,
+                    pk.azuriran_datuma,
+                    CONCAT(k.ime, ' ', k.prezime) as kreator_puno_ime 
+                FROM planovi_kontrole pk 
+                LEFT JOIN korisnici k ON pk.kreirao_korisnik_id = k.id 
+                WHERE pk.status = 'aktivan'";
+
         $whereClauses = [];
         $params = [];
         if (!empty($searchParams['broj_plana'])) { $whereClauses[] = "pk.broj_plana_kontrole LIKE :broj_plana"; $params[':broj_plana'] = '%' . $searchParams['broj_plana'] . '%'; }
@@ -24,7 +37,9 @@ class PlanKontrole {
         if (!empty($searchParams['kataloska'])) { $whereClauses[] = "pk.kataloska_oznaka LIKE :kataloska"; $params[':kataloska'] = '%' . $searchParams['kataloska'] . '%'; }
         if (!empty($searchParams['naziv'])) { $whereClauses[] = "pk.naziv_proizvoda LIKE :naziv"; $params[':naziv'] = '%' . $searchParams['naziv'] . '%'; }
         if (!empty($whereClauses)) { $sql .= " AND " . implode(" AND ", $whereClauses); }
+        
         $sql .= " ORDER BY pk.id DESC LIMIT :limit OFFSET :offset";
+        
         try {
             $stmt = $this->db->prepare($sql);
             foreach ($params as $key => &$val) { $stmt->bindParam($key, $val, PDO::PARAM_STR); }
@@ -87,57 +102,97 @@ class PlanKontrole {
     }
 
     public function planNumberExists($brojPlana, $excludeId = null) {
-        $sql = "SELECT id FROM planovi_kontrole WHERE broj_plana_kontrole = :broj_plana";
-        if ($excludeId) { $sql .= " AND id != :id"; }
+        if ($excludeId === null) {
+            $sql = "SELECT id FROM planovi_kontrole WHERE broj_plana_kontrole = :broj_plana";
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute([':broj_plana' => $brojPlana]);
+            return $stmt->fetch() !== false;
+        }
+
+        $stmtGroup = $this->db->prepare("SELECT verzija_grupa_id FROM planovi_kontrole WHERE id = :id");
+        $stmtGroup->execute([':id' => $excludeId]);
+        $result = $stmtGroup->fetch(PDO::FETCH_ASSOC);
+
+        $verzijaGrupaId = $result['verzija_grupa_id'] ?? $excludeId;
+
+        $sql = "SELECT id FROM planovi_kontrole WHERE broj_plana_kontrole = :broj_plana AND verzija_grupa_id != :verzija_grupa_id";
         $stmt = $this->db->prepare($sql);
-        $stmt->bindParam(':broj_plana', $brojPlana);
-        if ($excludeId) { $stmt->bindParam(':id', $excludeId, PDO::PARAM_INT); }
-        $stmt->execute();
+        $stmt->execute([
+            ':broj_plana' => $brojPlana,
+            ':verzija_grupa_id' => $verzijaGrupaId
+        ]);
+        
         return $stmt->fetch() !== false;
     }
 
-    private function savePlanDetails($planId, $grupeData, $filesData) {
-        if (!empty($grupeData)) {
-            $grupeData = array_values($grupeData);
+    private function savePlanDetails($planId, $grupeData, $filesData, $planData) {
+    if (!empty($grupeData)) {
+        $grupeData = array_values($grupeData);
 
-            foreach ($grupeData as $g_index => $grupa) {
-                $redosled = isset($grupa['redosled_prikaza']) ? (int)$grupa['redosled_prikaza'] : $g_index;
-                $sqlGrupa = "INSERT INTO grupe_karakteristika_plana (plan_kontrole_id, naziv_grupe, redosled_prikaza) VALUES (:plan_id, :naziv_grupe, :redosled)";
-                $stmtGrupa = $this->db->prepare($sqlGrupa);
-                $stmtGrupa->execute([':plan_id' => $planId, ':naziv_grupe' => $grupa['naziv_grupe'], ':redosled' => $redosled]);
-                $grupaId = $this->db->lastInsertId();
+        foreach ($grupeData as $g_index => $grupa) {
+            $redosled = isset($grupa['redosled_prikaza']) ? (int)$grupa['redosled_prikaza'] : $g_index;
+            $sqlGrupa = "INSERT INTO grupe_karakteristika_plana (plan_kontrole_id, naziv_grupe, redosled_prikaza) VALUES (:plan_id, :naziv_grupe, :redosled)";
+            $stmtGrupa = $this->db->prepare($sqlGrupa);
+            $stmtGrupa->execute([':plan_id' => $planId, ':naziv_grupe' => $grupa['naziv_grupe'], ':redosled' => $redosled]);
+            $grupaId = $this->db->lastInsertId();
 
-                if (!empty($grupa['karakteristike'])) {
-                    $karakteristikeData = array_values($grupa['karakteristike']);
+            if (!empty($grupa['karakteristike'])) {
+                $karakteristikeData = array_values($grupa['karakteristike']);
 
-                    foreach ($karakteristikeData as $k_index => $karakteristika) {
-                        $putanjaFajla = $karakteristika['postojeca_fotografija'] ?? null;
-                        
-                        if (isset($filesData['name'][$g_index]['karakteristike'][$k_index]['fotografija']) && $filesData['error'][$g_index]['karakteristike'][$k_index]['fotografija'] == 0) {
-                            $subDir = "karakteristike_planova/"; $uploadDir = UPLOADS_PATH . '/' . $subDir;
-                            if (!is_dir($uploadDir)) { mkdir($uploadDir, 0775, true); }
-                            $fajlIme = time() . '_' . basename($filesData['name'][$g_index]['karakteristike'][$k_index]['fotografija']);
-                            $uploadFajl = $uploadDir . $fajlIme;
-                            if (move_uploaded_file($filesData['tmp_name'][$g_index]['karakteristike'][$k_index]['fotografija'], $uploadFajl)) { $putanjaFajla = $subDir . $fajlIme; }
-                        }
-                        $sqlKarakteristika = "INSERT INTO karakteristike_plana (grupa_karakteristika_id, redni_broj_karakteristike, opis_karakteristike, putanja_fotografije_opis, vrsta_karakteristike, kontrolni_alat_nacin, velicina_uzorka, pozicija) VALUES (:grupa_id, :redni_broj, :opis, :putanja_foto, :vrsta, :alat, :uzorak, :pozicija)";
-                        $stmtKarakteristika = $this->db->prepare($sqlKarakteristika);
-                        $pozicija = isset($karakteristika['pozicija']) ? (int)$karakteristika['pozicija'] : $k_index;
-                        $stmtKarakteristika->execute([
-                            ':grupa_id' => $grupaId, 
-                            ':redni_broj' => $karakteristika['redni_broj_karakteristike'], 
-                            ':opis' => $karakteristika['opis_karakteristike'], 
-                            ':putanja_foto' => $putanjaFajla, 
-                            ':vrsta' => $karakteristika['vrsta_karakteristike'], 
-                            ':alat' => $karakteristika['kontrolni_alat_nacin'] ?? null, 
-                            ':uzorak' => $karakteristika['velicina_uzorka'] ?? null, 
-                            ':pozicija' => $pozicija
-                        ]);
+                foreach ($karakteristikeData as $k_index => $karakteristika) {
+                    
+                    // Inicijalizujemo putanju sa postojećom vrednošću
+                    $putanjaFajla = $karakteristika['postojeca_fotografija'] ?? null;
+
+                    // Proveravamo da li je checkbox 'ukloni_fotografiju' štikliran
+                    if (!empty($karakteristika['ukloni_fotografiju']) && $putanjaFajla) {
+                        // Samo se raskida veza u bazi, fajl se NE BRIŠE sa servera.
+                        $putanjaFajla = null;
                     }
+
+                    // Logika za upload nove slike (ostaje ista, ali se izvršava nakon brisanja veze)
+                    if (isset($filesData['name'][$g_index]['karakteristike'][$k_index]['fotografija']) && $filesData['error'][$g_index]['karakteristike'][$k_index]['fotografija'] == 0) {
+                        
+                        $safeIdentDir = preg_replace('/[^a-zA-Z0-9-_\.]/', '_', $planData['ident_proizvoda']);
+                        $subDir = "karakteristike_planova/" . $safeIdentDir . "/"; 
+
+                        $uploadDir = UPLOADS_PATH . '/' . $subDir;
+                        if (!is_dir($uploadDir)) { 
+                            mkdir($uploadDir, 0775, true); 
+                        }
+                        
+                        $originalFilename = basename($filesData['name'][$g_index]['karakteristike'][$k_index]['fotografija']);
+                        $fileExtension = pathinfo($originalFilename, PATHINFO_EXTENSION);
+                        
+                        $safePlanNumber = preg_replace('/[^a-zA-Z0-9-_\.]/', '_', $planData['broj_plana_kontrole']);
+                        $safeIdent = preg_replace('/[^a-zA-Z0-9-_\.]/', '_', $planData['ident_proizvoda']);
+                        
+                        $fajlIme = $safePlanNumber . '_' . $safeIdent . '_' . time() . '.' . $fileExtension;
+                        $uploadFajl = $uploadDir . $fajlIme;
+                        
+                        if (move_uploaded_file($filesData['tmp_name'][$g_index]['karakteristike'][$k_index]['fotografija'], $uploadFajl)) {
+                            $putanjaFajla = $subDir . $fajlIme;
+                        }
+                    }
+
+                    $sqlKarakteristika = "INSERT INTO karakteristike_plana (grupa_karakteristika_id, redni_broj_karakteristike, opis_karakteristike, putanja_fotografije_opis, vrsta_karakteristike, kontrolni_alat_nacin, velicina_uzorka, pozicija) VALUES (:grupa_id, :redni_broj, :opis, :putanja_foto, :vrsta, :alat, :uzorak, :pozicija)";
+                    $stmtKarakteristika = $this->db->prepare($sqlKarakteristika);
+                    $pozicija = isset($karakteristika['pozicija']) ? (int)$karakteristika['pozicija'] : $k_index;
+                    $stmtKarakteristika->execute([
+                        ':grupa_id' => $grupaId, 
+                        ':redni_broj' => $karakteristika['redni_broj_karakteristike'], 
+                        ':opis' => $karakteristika['opis_karakteristike'], 
+                        ':putanja_foto' => $putanjaFajla,
+                        ':vrsta' => $karakteristika['vrsta_karakteristike'], 
+                        ':alat' => $karakteristika['kontrolni_alat_nacin'] ?? null, 
+                        ':uzorak' => $karakteristika['velicina_uzorka'] ?? null, 
+                        ':pozicija' => $pozicija
+                    ]);
                 }
             }
         }
     }
+}
 
     public function createPlan($planData, $grupeData, $filesData) {
         try {
@@ -164,7 +219,7 @@ class PlanKontrole {
             $stmtUpdateVersionGroup = $this->db->prepare("UPDATE planovi_kontrole SET verzija_grupa_id = :group_id WHERE id = :plan_id");
             $stmtUpdateVersionGroup->execute([':group_id' => $planId, ':plan_id' => $planId]);
             
-            $this->savePlanDetails($planId, $grupeData, $filesData);
+            $this->savePlanDetails($planId, $grupeData, $filesData, $planData);
             
             $this->db->commit();
             return true;
@@ -178,7 +233,18 @@ class PlanKontrole {
     public function updatePlan($id, $planData, $grupeData, $filesData, $userId) {
         try {
             $this->db->beginTransaction();
-            $sqlPlan = "UPDATE planovi_kontrole SET broj_plana_kontrole = :broj_plana_kontrole, ident_proizvoda = :ident_proizvoda, kataloska_oznaka = :kataloska_oznaka, naziv_proizvoda = :naziv_proizvoda, broj_operacije = :broj_operacije, modifikovao_korisnik_id = :modifikovao_korisnik_id WHERE id = :id";
+            
+            $sqlPlan = "UPDATE planovi_kontrole SET 
+                            broj_plana_kontrole = :broj_plana_kontrole, 
+                            ident_proizvoda = :ident_proizvoda, 
+                            kataloska_oznaka = :kataloska_oznaka, 
+                            naziv_proizvoda = :naziv_proizvoda, 
+                            broj_operacije = :broj_operacije, 
+                            modifikovao_korisnik_id = :modifikovao_korisnik_id,
+                            verzija_napomena = :verzija_napomena,
+                            azuriran_datuma = NOW() 
+                        WHERE id = :id";
+                        
             $stmtPlan = $this->db->prepare($sqlPlan);
             
             $paramsForUpdate = [
@@ -188,6 +254,7 @@ class PlanKontrole {
                 ':naziv_proizvoda' => $planData['naziv_proizvoda'],
                 ':broj_operacije' => $planData['broj_operacije'],
                 ':modifikovao_korisnik_id' => $userId,
+                ':verzija_napomena' => $planData['verzija_napomena'],
                 ':id' => $id
             ];
             $stmtPlan->execute($paramsForUpdate);
@@ -195,7 +262,7 @@ class PlanKontrole {
             $stmtDelete = $this->db->prepare("DELETE FROM grupe_karakteristika_plana WHERE plan_kontrole_id = :plan_id");
             $stmtDelete->execute([':plan_id' => $id]);
             
-            $this->savePlanDetails($id, $grupeData, $filesData);
+            $this->savePlanDetails($id, $grupeData, $filesData, $planData);
             $this->db->commit();
             return true;
         } catch (Exception $e) {
@@ -213,9 +280,9 @@ class PlanKontrole {
             $verzijaGrupaId = $stariPlan['verzija_grupa_id'] ?? $stariPlan['id'];
             $novaVerzijaBroj = (int)$stariPlan['verzija_broj'] + 1;
             
-            $sqlArchive = "UPDATE planovi_kontrole SET status = 'arhiviran', modifikovao_korisnik_id = :user_id, verzija_grupa_id = :verzija_grupa_id WHERE id = :id";
+            $sqlArchive = "UPDATE planovi_kontrole SET status = 'arhiviran', modifikovao_korisnik_id = :user_id WHERE id = :id";
             $stmtArchive = $this->db->prepare($sqlArchive);
-            $stmtArchive->execute([':user_id' => $userId, ':verzija_grupa_id' => $verzijaGrupaId, ':id' => $oldPlanId]);
+            $stmtArchive->execute([':user_id' => $userId, ':id' => $oldPlanId]);
             
             $sqlNewVersion = "INSERT INTO planovi_kontrole (broj_plana_kontrole, ident_proizvoda, kataloska_oznaka, naziv_proizvoda, broj_operacije, kreirao_korisnik_id, status, verzija_grupa_id, verzija_broj, verzija_napomena) VALUES (:broj_plana_kontrole, :ident_proizvoda, :kataloska_oznaka, :naziv_proizvoda, :broj_operacije, :kreirao_korisnik_id, 'aktivan', :verzija_grupa_id, :verzija_broj, :verzija_napomena)";
             $stmtNewVersion = $this->db->prepare($sqlNewVersion);
@@ -234,7 +301,7 @@ class PlanKontrole {
             $stmtNewVersion->execute($paramsForNewVersion);
             
             $noviPlanId = $this->db->lastInsertId();
-            $this->savePlanDetails($noviPlanId, $grupeData, $filesData);
+            $this->savePlanDetails($noviPlanId, $grupeData, $filesData, $planData);
             $this->db->commit();
             return $noviPlanId;
         } catch (Exception $e) {
