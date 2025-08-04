@@ -114,6 +114,9 @@ $grupe = $formData['grupe'] ?? [];
 
     <form id="plan-kontrole-forma" action="<?php echo rtrim(APP_URL, '/'); ?>/public/index.php?action=<?php echo $isEdit ? 'admin_plan_update&id=' . $plan['id'] : 'admin_plan_store'; ?>" method="POST" enctype="multipart/form-data">
         
+        <input type="hidden" name="form_action" id="form_action" value="minor_edit">
+        <input type="hidden" name="verzija_napomena" id="hidden_verzija_napomena">
+
         <div class="card mb-4">
             <div class="card-header bg-light">Osnovni podaci o Planu Kontrole</div>
             <div class="card-body">
@@ -189,11 +192,43 @@ $grupe = $formData['grupe'] ?? [];
                 </div>
             </div>
         </div>
-        <div class="mt-4"><a href="<?php echo rtrim(APP_URL, '/'); ?>/public/index.php?page=admin_plans" class="btn btn-secondary me-2">Odustani</a><button type="submit" class="btn btn-primary"><?php echo $isEdit ? 'Sačuvaj izmene' : 'Kreiraj Plan Kontrole'; ?></button></div>
+
+        <div class="mt-4">
+            <a href="<?php echo rtrim(APP_URL, '/'); ?>/public/index.php?page=admin_plans" class="btn btn-secondary me-2">Odustani</a>
+            <?php if ($isEdit): ?>
+                <button type="submit" class="btn btn-primary" name="form_action" value="minor_edit">Sačuvaj manju izmenu</button>
+                <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#versionModal">Sačuvaj kao Novu Verziju</button>
+            <?php else: ?>
+                <button type="submit" class="btn btn-primary">Kreiraj Plan Kontrole</button>
+            <?php endif; ?>
+        </div>
+
     </form>
 </div>
 
 <?php if (isset($_SESSION['form_data'])) { unset($_SESSION['form_data']); } ?>
+
+<div class="modal fade" id="versionModal" tabindex="-1" aria-labelledby="versionModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="versionModalLabel">Kreiranje Nove Verzije Plana</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+            <label for="modal_verzija_napomena" class="form-label">Unesite razlog izmene (napomena) <span class="text-danger">*</span></label>
+            <textarea class="form-control" id="modal_verzija_napomena" rows="3" required></textarea>
+            <div class="invalid-feedback">Napomena je obavezna.</div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Odustani</button>
+        <button type="button" class="btn btn-primary" id="confirmNewVersionButton">Potvrdi i sačuvaj verziju</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <div class="modal fade" id="imageModal" tabindex="-1" aria-labelledby="imageModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-centered">

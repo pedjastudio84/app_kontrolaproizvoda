@@ -20,9 +20,9 @@ if (!defined('PAGE_TITLE')) {
     </nav>
 
     <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
-        <h1 class="mb-0"><?php echo htmlspecialchars(PAGE_TITLE); ?></h1>
+        <h1 class="mb-0"><?php echo htmlspecialchars(PAGE_TITLE); ?> <span class="badge bg-info">Verzija <?php echo htmlspecialchars($plan['verzija_broj']); ?></span></h1>
         <div class="btn-toolbar" role="toolbar">
-           <?php if (isset($_SESSION['user_uloga']) && $_SESSION['user_uloga'] === 'administrator'): ?>
+           <?php if (isset($_SESSION['user_uloga']) && $_SESSION['user_uloga'] === 'administrator' && $plan['status'] === 'aktivan'): ?>
             <a href="?page=admin_plan_edit&id=<?php echo $plan['id']; ?>" class="btn btn-primary me-1" title="Izmeni"><i class="fa-solid fa-pen-to-square me-1"></i>Izmeni</a>
             <a href="?page=admin_plan_copy&id=<?php echo $plan['id']; ?>" class="btn btn-warning me-1" title="Kopiraj"><i class="fa-solid fa-copy me-1"></i>Kopiraj</a>
             <a href="#" class="btn btn-danger me-1" title="Obriši"
@@ -59,6 +59,52 @@ if (!defined('PAGE_TITLE')) {
         </div>
     </div>
 
+    <!-- === NOVO: Prikaz istorije verzija === -->
+    <?php if (!empty($plan['verzije']) && count($plan['verzije']) > 1): ?>
+    <div class="card mb-4">
+        <div class="card-header">Istorija Verzija</div>
+        <div class="table-responsive">
+            <table class="table table-sm table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Verzija</th>
+                        <th>Status</th>
+                        <th>Datum izmene</th>
+                        <th>Izmenio</th>
+                        <th>Napomena o izmeni</th>
+                        <th>Akcije</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($plan['verzije'] as $verzija): ?>
+                    <tr class="<?php echo ($verzija['id'] == $plan['id']) ? 'table-primary' : ''; ?>">
+                        <td><strong>Verzija <?php echo htmlspecialchars($verzija['verzija_broj']); ?></strong></td>
+                        <td>
+                            <?php if ($verzija['status'] == 'aktivan'): ?>
+                                <span class="badge bg-success">Aktivna</span>
+                            <?php elseif ($verzija['status'] == 'arhiviran'): ?>
+                                <span class="badge bg-secondary">Arhivirana</span>
+                            <?php else: ?>
+                                <span class="badge bg-warning"><?php echo htmlspecialchars($verzija['status']); ?></span>
+                            <?php endif; ?>
+                        </td>
+                        <td><?php echo date('d.m.Y H:i', strtotime($verzija['azuriran_datuma'])); ?></td>
+                        <td><?php echo htmlspecialchars($verzija['modifikovao_korisnik'] ?? 'N/A'); ?></td>
+                        <td><?php echo nl2br(htmlspecialchars($verzija['verzija_napomena'] ?? '-')); ?></td>
+                        <td>
+                            <?php if ($verzija['id'] != $plan['id']): ?>
+                                <a href="?page=admin_plan_show&id=<?php echo $verzija['id']; ?>" class="btn btn-outline-secondary btn-sm">Pregled</a>
+                            <?php endif; ?>
+                        </td>
+                    </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <?php endif; ?>
+    <!-- === KRAJ PRIKAZA ISTORIJE VERZIJA === -->
+
     <h3 class="mt-4">Karakteristike za kontrolu</h3>
     <?php if (!empty($plan['grupe'])): ?>
         <?php foreach ($plan['grupe'] as $grupa): ?>
@@ -80,9 +126,9 @@ if (!defined('PAGE_TITLE')) {
                         </thead>
                         <tbody>
                             <?php if (!empty($grupa['karakteristike'])): ?>
-                                <?php foreach ($grupa['karakteristike'] as $karakteristika): ?>
+                                <?php foreach ($grupa['karakteristike'] as $k_index => $karakteristika): ?>
                                     <tr>
-                                        <td><?php echo htmlspecialchars($karakteristika['redni_broj_karakteristike']); ?></td>
+                                        <td><?php echo $k_index + 1; ?></td>
                                         <td><?php echo nl2br(htmlspecialchars($karakteristika['opis_karakteristike'])); ?></td>
                                         <td class="text-center">
                                             <?php if (!empty($karakteristika['putanja_fotografije_opis'])): ?>
@@ -135,7 +181,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     if (confirmDeleteBtn && deleteForm) {
         confirmDeleteBtn.addEventListener('click', function () {
-            deleteForm.submit(); // pokreće formu iz modala
+            deleteForm.submit();
         });
     }
 });

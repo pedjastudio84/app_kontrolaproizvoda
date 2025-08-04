@@ -334,4 +334,28 @@ $(document).ready(function() {
         init();
         animate();
     }
+// === NOVI KOD ZA UPRAVLJANJE MODALOM ZA VERZIJE ===
+    const versionModalEl = document.getElementById('versionModal');
+    if (versionModalEl) {
+        const versionModal = new bootstrap.Modal(versionModalEl);
+        const confirmBtn = document.getElementById('confirmNewVersionButton');
+        const napomenaTextarea = document.getElementById('modal_verzija_napomena');
+        const hiddenNapomenaInput = document.getElementById('hidden_verzija_napomena');
+        const form = document.getElementById('plan-kontrole-forma');
+        const actionInput = document.getElementById('form_action');
+
+        confirmBtn.addEventListener('click', function() {
+            const napomenaValue = napomenaTextarea.value.trim();
+            if (napomenaValue === '') {
+                napomenaTextarea.classList.add('is-invalid');
+                return;
+            }
+            napomenaTextarea.classList.remove('is-invalid');
+            
+            // Prebacujemo vrednosti u formu i šaljemo je
+            hiddenNapomenaInput.value = napomenaValue;
+            actionInput.value = 'new_version';
+            form.submit();
+        });
+    }
 });
