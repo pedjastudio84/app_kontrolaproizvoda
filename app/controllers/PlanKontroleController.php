@@ -20,27 +20,54 @@ class PlanKontroleController {
     }
 
     private function validatePlanData($planData, $grupeData, $isUpdate = false, $id = null) {
-        $errors = [];
-        if (empty($planData['broj_plana_kontrole'])) { $errors[] = 'Broj plana kontrole je obavezan.'; }
-        if ($this->planKontroleModel->planNumberExists($planData['broj_plana_kontrole'], $id)) { $errors[] = 'Plan sa ovim brojem već postoji.'; }
-        if (empty($planData['ident_proizvoda'])) { $errors[] = 'Ident proizvoda je obavezan.'; }
-        if (empty($planData['naziv_proizvoda'])) { $errors[] = 'Naziv proizvoda je obavezan.'; }
-        if (empty($grupeData)) {
-            $errors[] = 'Plan kontrole mora imati najmanje jednu grupu karakteristika.';
-        } else {
-            foreach ($grupeData as $g_index => $grupa) {
-                if (empty($grupa['naziv_grupe'])) { $errors[] = 'Naziv grupe ' . ((int)$g_index + 1) . ' je obavezan.'; }
-                if (empty($grupa['karakteristike'])) {
-                    $errors[] = 'Grupa "' . htmlspecialchars($grupa['naziv_grupe']) . '" mora imati najmanje jednu karakteristiku.';
-                } else {
-                    foreach ($grupa['karakteristike'] as $k_index => $karakteristika) {
-                        if (empty($karakteristika['opis_karakteristike'])) { $errors[] = 'Opis karakteristike br. ' . ((int)$k_index + 1) . ' u grupi "' . htmlspecialchars($grupa['naziv_grupe']) . '" je obavezan.'; }
+    $errors = [];
+    
+    // Provera za Broj Plana Kontrole (ostaje ista)
+    if (empty($planData['broj_plana_kontrole'])) { 
+        $errors[] = 'Broj plana kontrole je obavezan.'; 
+    }
+    if ($this->planKontroleModel->planNumberExists($planData['broj_plana_kontrole'], $id)) { 
+        $errors[] = 'Plan sa ovim brojem već postoji.'; 
+    }
+    
+    // Provera za Ident Proizvoda
+    if (empty($planData['ident_proizvoda'])) { 
+        $errors[] = 'Ident proizvoda je obavezan.'; 
+    }
+    
+    // --- NOVA LINIJA KODA ---
+    // Ako kreiramo NOVI plan (ne ažuriramo postojeći), proveravamo da li ident već postoji
+    if (!$isUpdate && $this->planKontroleModel->identExists($planData['ident_proizvoda'])) {
+        $errors[] = 'Plan kontrole za uneti Ident proizvoda već postoji.';
+    }
+    // --- KRAJ NOVE LINIJE KODA ---
+    
+    if (empty($planData['naziv_proizvoda'])) { 
+        $errors[] = 'Naziv proizvoda je obavezan.'; 
+    }
+    
+    if (empty($grupeData)) {
+        $errors[] = 'Plan kontrole mora imati najmanje jednu grupu karakteristika.';
+    } else {
+        foreach ($grupeData as $g_index => $grupa) {
+            if (empty($grupa['naziv_grupe'])) { 
+                $errors[] = 'Naziv grupe ' . ((int)$g_index + 1) . ' je obavezan.'; 
+            }
+            if (empty($grupa['karakteristike'])) {
+                $errors[] = 'Grupa "' . htmlspecialchars($grupa['naziv_grupe']) . '" mora imati najmanje jednu karakteristiku.';
+            } else {
+                foreach ($grupa['karakteristike'] as $k_index => $karakteristika) {
+                    if (empty($karakteristika['opis_karakteristike'])) { 
+                        $errors[] = 'Opis karakteristike br. ' . ((int)$k_index + 1) . ' u grupi "' . htmlspecialchars($grupa['naziv_grupe']) . '" je obavezan.'; 
                     }
                 }
             }
         }
-        return $errors;
     }
+    
+    return $errors;
+}
+    
 
     public function index() {
         if (session_status() == PHP_SESSION_NONE) { session_start(); }

@@ -75,10 +75,18 @@
                             <a href="?page=pregled_plana_detalji&id=<?php echo $plan['id']; ?>" class="list-group-item list-group-item-action">
                                 <div class="d-flex w-100 justify-content-between">
                                     <h6 class="mb-1"><?php echo htmlspecialchars($plan['naziv_proizvoda']); ?></h6>
-                                    <small>Plan: <?php echo htmlspecialchars($plan['broj_plana_kontrole']); ?></small>
+                                    <small>Plan: <?php echo htmlspecialchars($plan['broj_plana_kontrole']); ?> (ver. <?php echo htmlspecialchars($plan['verzija_broj']); ?>)</small>
                                 </div>
                                 <p class="mb-1">Kat. oznaka: <strong><?php echo htmlspecialchars($plan['kataloska_oznaka'] ?? '-'); ?></strong></p>
-                                <small class="text-muted">Kreirao: <?php echo htmlspecialchars($plan['kreator_puno_ime']); ?> | <?php echo htmlspecialchars(date('d.m.Y', strtotime($plan['kreiran_datuma']))); ?></small>
+                                <small class="text-muted">
+                                    Kreirao: <?php echo htmlspecialchars($plan['kreator_puno_ime']); ?> | <?php echo htmlspecialchars(date('d.m.Y', strtotime($plan['kreiran_datuma']))); ?>
+                                    <?php
+                                    // Prikazujemo datum izmene samo ako se razlikuje od datuma kreiranja
+                                    if (date('Y-m-d', strtotime($plan['azuriran_datuma'])) != date('Y-m-d', strtotime($plan['kreiran_datuma']))) {
+                                        echo ' | Izmenjen: ' . htmlspecialchars(date('d.m.Y', strtotime($plan['azuriran_datuma'])));
+                                    }
+                                    ?>
+                                </small>
                             </a>
                         <?php endforeach; ?>
                     <?php else: ?>
