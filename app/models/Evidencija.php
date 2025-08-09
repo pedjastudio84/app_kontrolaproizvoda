@@ -1,4 +1,6 @@
 <?php
+require_once __DIR__ . '/PlanKontrole.php'; // Važno: Osiguravamo da je PlanKontrole model dostupan
+
 class Evidencija {
     private $db;
 
@@ -6,9 +8,6 @@ class Evidencija {
         $this->db = $db;
     }
 
-    /**
-     * Kreira kompletnu evidenciju kontrole unutar transakcije.
-     */
     public function create($data, $files, $kontrolorId) {
         try {
             $this->db->beginTransaction();
@@ -23,22 +22,29 @@ class Evidencija {
                 ':product_naziv_sken' => $data['naziv'],
                 ':product_serijski_broj_sken' => $data['serijski_broj'],
                 ':ostale_napomene' => $data['ostale_napomene'] ?? null,
-                ':ime_kupca' => $data['ime_kupca'] ?? null // DODATO
+                ':ime_kupca' => $data['ime_kupca'] ?? null
             ]);
             $evidencijaId = $this->db->lastInsertId();
 
-            // 2. Upis rezultata iz ček-liste
             if (!empty($data['rezultati']) && is_array($data['rezultati'])) {
-                $sqlRezultat = "INSERT INTO rezultati_karakteristika_evidencije (evidencija_kontrole_id, karakteristika_plana_id, opis_karakteristike_snapshot, rezultat_ok_nok, rezultat_tekst) VALUES (:evidencija_id, :karakteristika_id, :opis_snapshot, :rezultat_ok_nok, :rezultat_tekst)";
+                $sqlRezultat = "INSERT INTO rezultati_karakteristika_evidencije (evidencija_kontrole_id, karakteristika_plana_id, opis_karakteristike_snapshot, rezultat_ok_nok, rezultat_tekst, napomena) VALUES (:evidencija_id, :karakteristika_id, :opis_snapshot, :rezultat_ok_nok, :rezultat_tekst, :napomena)";
                 $stmtRezultat = $this->db->prepare($sqlRezultat);
                 foreach ($data['rezultati'] as $karakteristikaId => $rezultatData) {
                     $vrednost = $rezultatData['vrednost'] ?? null;
                     $opis_snapshot = $rezultatData['opis_snapshot'] ?? 'Nepoznat opis';
-                    $stmtRezultat->execute([':evidencija_id' => $evidencijaId, ':karakteristika_id' => $karakteristikaId, ':opis_snapshot' => $opis_snapshot, ':rezultat_ok_nok' => in_array($vrednost, ['OK', 'NOK']) ? $vrednost : null, ':rezultat_tekst' => !in_array($vrednost, ['OK', 'NOK']) ? $vrednost : null,]);
+                    $napomena = $rezultatData['napomena'] ?? null;
+
+                    $stmtRezultat->execute([
+                        ':evidencija_id' => $evidencijaId, 
+                        ':karakteristika_id' => $karakteristikaId, 
+                        ':opis_snapshot' => $opis_snapshot, 
+                        ':rezultat_ok_nok' => in_array($vrednost, ['OK', 'NOK']) ? $vrednost : null, 
+                        ':rezultat_tekst' => !in_array($vrednost, ['OK', 'NOK']) ? $vrednost : null,
+                        ':napomena' => $napomena
+                    ]);
                 }
             }
 
-            // 3. Obrada i upis fotografija mašine
             if (isset($files['masina_foto']) && !empty($files['masina_foto']['name'][0])) {
                 $sqlFoto = "INSERT INTO fotografije_masine_evidencije (evidencija_kontrole_id, putanja_fotografije) VALUES (:evidencija_id, :putanja)";
                 $stmtFoto = $this->db->prepare($sqlFoto);
@@ -50,14 +56,8 @@ class Evidencija {
 
                 foreach ($files['masina_foto']['name'] as $key => $name) {
                     if ($files['masina_foto']['error'][$key] === 0) {
-                        $datum = date('YmdHis');
-                        $ident = preg_replace('/[^a-zA-Z0-9-]/', '', $data['ident']);
-                        $kataloska = preg_replace('/[^a-zA-Z0-9-]/', '', $data['kataloska_oznaka']);
-                        $serijski = preg_replace('/[^a-zA-Z0-9-]/', '', $data['serijski_broj']);
                         $fileExtension = pathinfo(basename($name), PATHINFO_EXTENSION);
-                        
-                        $noviNazivFajla = "{$datum}_{$ident}_{$kataloska}_{$serijski}_{$key}.{$fileExtension}";
-
+                        $noviNazivFajla = basename($name, ".".$fileExtension) . "_" . time() . "." . $fileExtension;
                         $uploadFajl = $uploadDir . $noviNazivFajla;
                         if (move_uploaded_file($files['masina_foto']['tmp_name'][$key], $uploadFajl)) {
                             $putanjaZaBazu = $subDir . $noviNazivFajla;
@@ -68,7 +68,7 @@ class Evidencija {
             }
 
             $this->db->commit();
-            return true;
+            return $evidencijaId;
         } catch (Exception $e) {
             $this->db->rollBack();
             error_log("Greška u Evidencija::create: " . $e->getMessage());
@@ -76,33 +76,37 @@ class Evidencija {
         }
     }
 
-    /**
-     * Ažurira postojeću evidenciju u bazi.
-     */
     public function update($id, $data, $files) {
         try {
             $this->db->beginTransaction();
 
-            $sqlEvidencija = "UPDATE evidencije_kontrole SET product_ident_sken = :ident, product_kataloska_oznaka_sken = :kataloska_oznaka, product_naziv_sken = :naziv, product_serijski_broj_sken = :serijski_broj, ostale_napomene = :ostale_napomene WHERE id = :id";
+            $sqlEvidencija = "UPDATE evidencije_kontrole SET ostale_napomene = :ostale_napomene, ime_kupca = :ime_kupca WHERE id = :id";
             $stmtEvidencija = $this->db->prepare($sqlEvidencija);
             $stmtEvidencija->execute([
-                ':ident' => $data['ident'],
-                ':kataloska_oznaka' => $data['kataloska_oznaka'],
-                ':naziv' => $data['naziv'],
-                ':serijski_broj' => $data['serijski_broj'],
                 ':ostale_napomene' => $data['ostale_napomene'] ?? null,
+                ':ime_kupca' => $data['ime_kupca'] ?? null,
                 ':id' => $id
             ]);
 
             $stmtDeleteRezultati = $this->db->prepare("DELETE FROM rezultati_karakteristika_evidencije WHERE evidencija_kontrole_id = :id");
             $stmtDeleteRezultati->execute([':id' => $id]);
+            
             if (!empty($data['rezultati']) && is_array($data['rezultati'])) {
-                $sqlRezultat = "INSERT INTO rezultati_karakteristika_evidencije (evidencija_kontrole_id, karakteristika_plana_id, opis_karakteristike_snapshot, rezultat_ok_nok, rezultat_tekst) VALUES (:evidencija_id, :karakteristika_id, :opis_snapshot, :rezultat_ok_nok, :rezultat_tekst)";
+                $sqlRezultat = "INSERT INTO rezultati_karakteristika_evidencije (evidencija_kontrole_id, karakteristika_plana_id, opis_karakteristike_snapshot, rezultat_ok_nok, rezultat_tekst, napomena) VALUES (:evidencija_id, :karakteristika_id, :opis_snapshot, :rezultat_ok_nok, :rezultat_tekst, :napomena)";
                 $stmtRezultat = $this->db->prepare($sqlRezultat);
                 foreach ($data['rezultati'] as $karakteristikaId => $rezultatData) {
                     $vrednost = $rezultatData['vrednost'] ?? null;
                     $opis_snapshot = $rezultatData['opis_snapshot'] ?? 'Nepoznat opis';
-                    $stmtRezultat->execute([':evidencija_id' => $id, ':karakteristika_id' => $karakteristikaId, ':opis_snapshot' => $opis_snapshot, ':rezultat_ok_nok' => in_array($vrednost, ['OK', 'NOK']) ? $vrednost : null, ':rezultat_tekst' => !in_array($vrednost, ['OK', 'NOK']) ? $vrednost : null]);
+                    $napomena = $rezultatData['napomena'] ?? null;
+                    
+                    $stmtRezultat->execute([
+                        ':evidencija_id' => $id, 
+                        ':karakteristika_id' => is_numeric($karakteristikaId) ? $karakteristikaId : null,
+                        ':opis_snapshot' => $opis_snapshot, 
+                        ':rezultat_ok_nok' => in_array($vrednost, ['OK', 'NOK']) ? $vrednost : null, 
+                        ':rezultat_tekst' => !in_array($vrednost, ['OK', 'NOK']) ? $vrednost : null,
+                        ':napomena' => $napomena
+                    ]);
                 }
             }
 
@@ -133,14 +137,8 @@ class Evidencija {
                 
                 foreach ($files['masina_foto']['name'] as $key => $name) {
                     if ($files['masina_foto']['error'][$key] === 0) {
-                        $datum = date('YmdHis');
-                        $ident = preg_replace('/[^a-zA-Z0-9-]/', '', $data['ident']);
-                        $kataloska = preg_replace('/[^a-zA-Z0-9-]/', '', $data['kataloska_oznaka']);
-                        $serijski = preg_replace('/[^a-zA-Z0-9-]/', '', $data['serijski_broj']);
                         $fileExtension = pathinfo(basename($name), PATHINFO_EXTENSION);
-                        
-                        $noviNazivFajla = "{$datum}_{$ident}_{$kataloska}_{$serijski}_{$key}_" . time() . ".{$fileExtension}";
-
+                        $noviNazivFajla = basename($name, ".".$fileExtension) . "_" . time() . "." . $fileExtension;
                         $uploadFajl = $uploadDir . $noviNazivFajla;
                         if (move_uploaded_file($files['masina_foto']['tmp_name'][$key], $uploadFajl)) {
                             $putanjaZaBazu = $subDir . $noviNazivFajla;
@@ -159,19 +157,12 @@ class Evidencija {
         }
     }
 
-    public function deleteById($id) {
-        try {
-            $stmt = $this->db->prepare("DELETE FROM evidencije_kontrole WHERE id = :id");
-            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
-            return $stmt->execute();
-        } catch (PDOException $e) {
-            error_log("Greška u Evidencija::deleteById: " . $e->getMessage());
-            return false;
-        }
-    }
-
     public function getByIdWithDetails($id) {
-        $sql = "SELECT e.*, CONCAT(u.ime, ' ', u.prezime) as kontrolor_puno_ime, p.broj_plana_kontrole FROM evidencije_kontrole e JOIN korisnici u ON e.kontrolor_id = u.id LEFT JOIN planovi_kontrole p ON e.plan_kontrole_id = p.id WHERE e.id = :id";
+        $sql = "SELECT e.*, 
+                       CONCAT(u.ime, ' ', u.prezime) as kontrolor_puno_ime 
+                FROM evidencije_kontrole e 
+                JOIN korisnici u ON e.kontrolor_id = u.id 
+                WHERE e.id = :id";
         $stmt = $this->db->prepare($sql);
         $stmt->bindParam(':id', $id, PDO::PARAM_INT);
         $stmt->execute();
@@ -181,15 +172,25 @@ class Evidencija {
             return false;
         }
 
-        // --- POČETAK IZMENE ---
-        // U upit je dodat 'kp.kontrolni_alat_nacin' da povučemo podatak o alatu
-        $sqlRezultati = "SELECT rke.*, kp.redni_broj_karakteristike, kp.kontrolni_alat_nacin, gkp.naziv_grupe 
+        // --- NOVA LOGIKA ZA UČITAVANJE PLANA ---
+        if (!empty($evidencija['plan_kontrole_id'])) {
+            $planKontroleModel = new PlanKontrole($this->db);
+            // Učitavamo kompletan plan sa svim grupama i karakteristikama
+            $evidencija['plan'] = $planKontroleModel->getPlanByIdWithDetails($evidencija['plan_kontrole_id']);
+        } else {
+            $evidencija['plan'] = null;
+        }
+        // --- KRAJ NOVE LOGIKE ---
+        
+        $sqlRezultati = "SELECT rke.*, 
+                                kp.redni_broj_karakteristike, 
+                                kp.kontrolni_alat_nacin, 
+                                gkp.naziv_grupe 
                          FROM rezultati_karakteristika_evidencije rke 
                          LEFT JOIN karakteristike_plana kp ON rke.karakteristika_plana_id = kp.id 
                          LEFT JOIN grupe_karakteristika_plana gkp ON kp.grupa_karakteristika_id = gkp.id 
                          WHERE rke.evidencija_kontrole_id = :id 
                          ORDER BY gkp.redosled_prikaza ASC, kp.redni_broj_karakteristike ASC";
-        // --- KRAJ IZMENE ---
         
         $stmtRezultati = $this->db->prepare($sqlRezultati);
         $stmtRezultati->bindParam(':id', $id, PDO::PARAM_INT);
@@ -203,6 +204,18 @@ class Evidencija {
         $evidencija['fotografije_masine'] = $stmtFotografije->fetchAll(PDO::FETCH_ASSOC);
 
         return $evidencija;
+    }
+    
+    // Ostatak metoda ostaje nepromenjen...
+    public function deleteById($id) {
+        try {
+            $stmt = $this->db->prepare("DELETE FROM evidencije_kontrole WHERE id = :id");
+            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+            return $stmt->execute();
+        } catch (PDOException $e) {
+            error_log("Greška u Evidencija::deleteById: " . $e->getMessage());
+            return false;
+        }
     }
 
     public function getTotalCountForUser($kontrolorId, $searchParams = []) {
@@ -325,9 +338,6 @@ class Evidencija {
         }
     }
 
-    /**
-     * Broji sve evidencije unete danas.
-     */
     public function countTodayRecords() {
         date_default_timezone_set('Europe/Belgrade');
         $danasnji_datum = date('Y-m-d');
@@ -344,9 +354,6 @@ class Evidencija {
         }
     }
 
-    /**
-     * Broji sve evidencije unete u tekućem mesecu.
-     */
     public function countThisMonthRecords() {
         date_default_timezone_set('Europe/Belgrade');
         $godina = date('Y');

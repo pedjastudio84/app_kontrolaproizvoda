@@ -22,7 +22,7 @@ if (session_status() == PHP_SESSION_NONE) { session_start(); }
                 if ($mozeDaMenja):
                 ?>
                     <a href="<?php echo rtrim(APP_URL, '/'); ?>/public/index.php?page=kontrolor_zapis_edit&id=<?php echo $evidencija['id']; ?>" class="btn btn-primary" title="Izmeni"><i class="fa-solid fa-pen-to-square me-1"></i>Izmeni</a>
-                    <a href="#"class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#confirmDeleteModal" data-delete-url="index.php?action=delete&id=<?php echo $plan['id']; ?>"><i class="fa-solid fa-trash me-1"></i>Obriši</a>
+                    <a href="#"class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#confirmDeleteModal" data-delete-url="index.php?action=evidencija_delete&id=<?php echo $evidencija['id']; ?>"><i class="fa-solid fa-trash me-1"></i>Obriši</a>
                 <?php endif; ?>
 
                 <a href="?action=generate_single_report&id=<?php echo $evidencija['id']; ?>" class="btn btn-success" target="_blank" title="Generiši PDF">
@@ -43,7 +43,7 @@ if (session_status() == PHP_SESSION_NONE) { session_start(); }
                 <dt class="col-sm-4">Vrsta kontrole:</dt><dd class="col-sm-8"><?php echo htmlspecialchars(str_replace('_', ' ', ucfirst($evidencija['vrsta_kontrole']))); ?></dd>
                 <dt class="col-sm-4">Datum i vreme:</dt><dd class="col-sm-8"><?php echo date('d.m.Y H:i:s', strtotime($evidencija['datum_vreme_ispitivanja'])); ?></dd>
                 <dt class="col-sm-4">Kontrolor:</dt><dd class="col-sm-8"><?php echo htmlspecialchars($evidencija['kontrolor_puno_ime']); ?></dd>
-                <dt class="col-sm-4">Korišćen plan:</dt><dd class="col-sm-8"><?php echo htmlspecialchars($evidencija['broj_plana_kontrole'] ?? 'N/A'); ?></dd>
+                <dt class="col-sm-4">Korišćen plan:</dt><dd class="col-sm-8"><?php echo htmlspecialchars($evidencija['plan']['broj_plana_kontrole'] ?? 'N/A'); ?> (Verzija: <?php echo htmlspecialchars($evidencija['plan']['verzija_broj'] ?? 'N/A'); ?>)</dd>
 
             </dl>
         </div>
@@ -73,33 +73,44 @@ if (session_status() == PHP_SESSION_NONE) { session_start(); }
                 $trenutnaGrupa = null;
                 foreach($evidencija['rezultati'] as $rezultat):
                     if ($trenutnaGrupa !== $rezultat['naziv_grupe']) {
-                        if ($trenutnaGrupa !== null) { echo '</div>'; } // Zatvori prethodni card-body
+                        if ($trenutnaGrupa !== null) { echo '</div>'; } 
                         $trenutnaGrupa = $rezultat['naziv_grupe'];
                         echo '<h5 class="mt-3"><strong>Grupa: ' . htmlspecialchars($trenutnaGrupa) . '</strong></h5><div class="list-group list-group-flush">';
                     }
                 ?>
-                    <div class="list-group-item d-flex justify-content-between align-items-center flex-wrap">
-                        <div class="me-auto">
-                            <span><?php echo htmlspecialchars($rezultat['opis_karakteristike_snapshot'] ?? 'Karakteristika ' . $rezultat['karakteristika_plana_id']); ?></span>
-                            <?php if (!empty($rezultat['kontrolni_alat_nacin'])): ?>
-                                <span class="d-block text-muted small mt-1">
-                                    <i class="fa-solid fa-wrench me-1"></i><strong>Alat/Način:</strong> <?php echo htmlspecialchars($rezultat['kontrolni_alat_nacin']); ?>
-                                </span>
-                            <?php endif; ?>
+                    <div class="list-group-item">
+                        <div class="d-flex justify-content-between align-items-center flex-wrap">
+                            <div class="me-auto">
+                                <span><?php echo htmlspecialchars($rezultat['opis_karakteristike_snapshot'] ?? 'Karakteristika ' . $rezultat['karakteristika_plana_id']); ?></span>
+                                <?php if (!empty($rezultat['kontrolni_alat_nacin'])): ?>
+                                    <span class="d-block text-muted small mt-1">
+                                        <i class="fa-solid fa-wrench me-1"></i><strong>Alat/Način:</strong> <?php echo htmlspecialchars($rezultat['kontrolni_alat_nacin']); ?>
+                                    </span>
+                                <?php endif; ?>
                             </div>
-                        <div class="ms-3">
-                            <?php
-                                $rezultat_prikaz = $rezultat['rezultat_ok_nok'] ?? $rezultat['rezultat_tekst'];
-                                $badge_class = 'bg-secondary';
-                                if ($rezultat_prikaz === 'OK') $badge_class = 'bg-success';
-                                if ($rezultat_prikaz === 'NOK') $badge_class = 'bg-danger';
-                            ?>
-                            <span class="badge <?php echo $badge_class; ?> fs-6"><?php echo htmlspecialchars($rezultat_prikaz); ?></span>
+                            <div class="ms-3">
+                                <?php
+                                    $rezultat_prikaz = $rezultat['rezultat_ok_nok'] ?? $rezultat['rezultat_tekst'];
+                                    $badge_class = 'bg-secondary';
+                                    if ($rezultat_prikaz === 'OK') $badge_class = 'bg-success';
+                                    if ($rezultat_prikaz === 'NOK') $badge_class = 'bg-danger';
+                                ?>
+                                <span class="badge <?php echo $badge_class; ?> fs-6"><?php echo htmlspecialchars($rezultat_prikaz); ?></span>
+                            </div>
                         </div>
-                    </div>
+                        
+                        <?php if (!empty($rezultat['napomena'])): ?>
+                            <div class="mt-2 ps-3 border-start border-3 border-secondary">
+                                <p class="mb-0 text-danger fst-italic">
+                                    <i class="fa-solid fa-comment-dots me-1"></i>
+                                    <?php echo htmlspecialchars($rezultat['napomena']); ?>
+                                </p>
+                            </div>
+                        <?php endif; ?>
+                        </div>
                 <?php 
                 endforeach; 
-                if ($trenutnaGrupa !== null) { echo '</div>'; } // Zatvori poslednji card-body
+                if ($trenutnaGrupa !== null) { echo '</div>'; }
                 ?>
             <?php else: ?>
                 <p class="text-muted">Nema sačuvanih rezultata za ček-listu.</p>

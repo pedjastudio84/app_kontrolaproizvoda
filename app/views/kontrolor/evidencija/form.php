@@ -8,10 +8,8 @@ if ($isEdit) {
     $vrsta_kontrole = $evidencija['vrsta_kontrole'];
     $pageTitle = 'Izmena Zapisa #' . $evidencija['id'];
     $formDataSource = $evidencija;
-    // Učitavamo plan podatke ako već nisu tu (deo su evidencije)
     $plan = $evidencija['plan'] ?? null;
 } else {
-    // Ako je kreiranje (ili neuspela validacija), koristimo podatke iz sesije ili prazne vrednosti
     $vrsta_kontrole = $_GET['vrsta'] ?? ($formData['vrsta_kontrole'] ?? 'nepoznata');
     $vrsta_kontrole_tekst = ($vrsta_kontrole === 'redovna_kontrola') ? 'Redovna kontrola' : 'Kontrola pre isporuke';
     $pageTitle = 'Novi Zapis - ' . $vrsta_kontrole_tekst;
@@ -25,11 +23,8 @@ if (session_status() == PHP_SESSION_NONE) {
     session_start();
 }
 
-// Ako je neuspela validacija, rezultati su u $formDataSource['rezultati']
-// Ako je izmena, rezultati su u $evidencija['rezultati']
 $rezultati = $isEdit ? $evidencija['rezultati'] : ($formDataSource['rezultati'] ?? []);
 ?>
-
 
 <div class="container-fluid">
     <nav aria-label="breadcrumb">
@@ -129,10 +124,18 @@ $rezultati = $isEdit ? $evidencija['rezultati'] : ($formDataSource['rezultati'] 
                     <div class="card mb-3"><div class="card-header bg-light"><strong>Grupa: <?php echo htmlspecialchars($grupa['naziv_grupe']); ?></strong></div><div class="card-body">
                         <?php foreach($grupa['karakteristike'] as $kar): 
                             $sacuvan_rezultat = '';
+                            $sacuvana_napomena = '';
                             if ($isEdit) {
-                                foreach($rezultati as $rez) { if ($rez['karakteristika_plana_id'] == $kar['id']) { $sacuvan_rezultat = $rez['rezultat_ok_nok'] ?? $rez['rezultat_tekst']; break; }}
+                                foreach($rezultati as $rez) { 
+                                    if (isset($rez['karakteristika_plana_id']) && $rez['karakteristika_plana_id'] == $kar['id']) { 
+                                        $sacuvan_rezultat = $rez['rezultat_ok_nok'] ?? $rez['rezultat_tekst']; 
+                                        $sacuvana_napomena = $rez['napomena'] ?? '';
+                                        break; 
+                                    }
+                                }
                             } else {
                                 $sacuvan_rezultat = $rezultati[$kar['id']]['vrednost'] ?? '';
+                                $sacuvana_napomena = $rezultati[$kar['id']]['napomena'] ?? '';
                             }
                         ?>
                             <div class="mb-3 p-2 border-bottom">
@@ -144,12 +147,20 @@ $rezultati = $isEdit ? $evidencija['rezultati'] : ($formDataSource['rezultati'] 
                                 <?php if ($kar['putanja_fotografije_opis']): ?>
                                     <div class="mb-2"><a href="#" class="view-image-link" data-bs-toggle="modal" data-bs-target="#imageModal" data-image-url="<?php echo rtrim(APP_URL, '/'); ?>/public/uploads/<?php echo htmlspecialchars($kar['putanja_fotografije_opis']); ?>"><img src="<?php echo rtrim(APP_URL, '/'); ?>/public/uploads/<?php echo htmlspecialchars($kar['putanja_fotografije_opis']); ?>" alt="Referentna slika" class="img-thumbnail" style="max-height: 150px; cursor: pointer;"></a></div>
                                 <?php endif; ?>
-                                <?php if ($kar['vrsta_karakteristike'] === 'OK/NOK'): ?>
-                                    <div class="form-check form-check-inline"><input class="form-check-input" type="radio" name="rezultati[<?php echo $kar['id']; ?>][vrednost]" id="ok_<?php echo $kar['id']; ?>" value="OK" <?php if($sacuvan_rezultat == 'OK') echo 'checked'; ?> required><label class="form-check-label" for="ok_<?php echo $kar['id']; ?>">OK</label></div>
-                                    <div class="form-check form-check-inline"><input class="form-check-input" type="radio" name="rezultati[<?php echo $kar['id']; ?>][vrednost]" id="nok_<?php echo $kar['id']; ?>" value="NOK" <?php if($sacuvan_rezultat == 'NOK') echo 'checked'; ?>><label class="form-check-label" for="nok_<?php echo $kar['id']; ?>">NOK</label></div>
-                                <?php else: ?>
-                                    <textarea class="form-control mt-2" name="rezultati[<?php echo $kar['id']; ?>][vrednost]" rows="2" placeholder="Unesite tekstualni opis..." required><?php echo htmlspecialchars($sacuvan_rezultat); ?></textarea>
-                                <?php endif; ?>
+                                
+                                <div class="row gx-2 align-items-center mt-2">
+                                    <div class="col-md-5">
+                                        <?php if ($kar['vrsta_karakteristike'] === 'OK/NOK'): ?>
+                                            <div class="form-check form-check-inline"><input class="form-check-input" type="radio" name="rezultati[<?php echo $kar['id']; ?>][vrednost]" id="ok_<?php echo $kar['id']; ?>" value="OK" <?php if($sacuvan_rezultat == 'OK') echo 'checked'; ?> required><label class="form-check-label" for="ok_<?php echo $kar['id']; ?>">OK</label></div>
+                                            <div class="form-check form-check-inline"><input class="form-check-input" type="radio" name="rezultati[<?php echo $kar['id']; ?>][vrednost]" id="nok_<?php echo $kar['id']; ?>" value="NOK" <?php if($sacuvan_rezultat == 'NOK') echo 'checked'; ?>><label class="form-check-label" for="nok_<?php echo $kar['id']; ?>">NOK</label></div>
+                                        <?php else: ?>
+                                            <textarea class="form-control" name="rezultati[<?php echo $kar['id']; ?>][vrednost]" rows="2" placeholder="Rezultati ispitivanja..." required><?php echo htmlspecialchars($sacuvan_rezultat); ?></textarea>
+                                        <?php endif; ?>
+                                    </div>
+                                    <div class="col-md-7">
+                                        <input type="text" class="form-control" name="rezultati[<?php echo $kar['id']; ?>][napomena]" placeholder="Dodaj napomenu (opciono)..." value="<?php echo htmlspecialchars($sacuvana_napomena); ?>">
+                                    </div>
+                                </div>
                             </div>
                         <?php endforeach; ?>
                     </div></div>
