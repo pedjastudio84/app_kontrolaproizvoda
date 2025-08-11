@@ -9,7 +9,23 @@ if (!defined('PAGE_TITLE')) {
     define('PAGE_TITLE', 'Pregled Zapisa #' . $evidencija['id']);
 }
 if (session_status() == PHP_SESSION_NONE) { session_start(); }
+
+// Helper funkcija za prevođenje vrste kontrole
+function formatirajVrstuKontrole($vrsta) {
+    switch ($vrsta) {
+        case 'redovna_kontrola':
+            return 'Redovna';
+        case 'kontrola_pre_isporuke':
+            return 'Pre isporuke';
+        case 'vanredna_kontrola':
+            return 'Vanredna';
+        default:
+            return ucfirst(str_replace('_', ' ', $vrsta));
+    }
+}
 ?>
+
+<div class="container-fluid">
     <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
         <h1 class="mb-0"><?php echo htmlspecialchars(PAGE_TITLE); ?></h1>
         
@@ -33,14 +49,13 @@ if (session_status() == PHP_SESSION_NONE) { session_start(); }
             </div>
         </div>
     </div>
-    </div>
 
     <div class="card mb-4">
         <div class="card-header">Osnovni Podaci</div>
         <div class="card-body">
             <dl class="row mb-0">
-                <dt class="col-sm-4">ID Zapisa:</dt><dd class="col-sm-8"><?php echo $evidencija['id']; ?></dd>
-                <dt class="col-sm-4">Vrsta kontrole:</dt><dd class="col-sm-8"><?php echo htmlspecialchars(str_replace('_', ' ', ucfirst($evidencija['vrsta_kontrole']))); ?></dd>
+                <dt class="col-sm-4">ID Zapisa:</dt><dd class="col-sm-8">#<?php echo $evidencija['id']; ?></dd>
+                <dt class="col-sm-4">Vrsta kontrole:</dt><dd class="col-sm-8"><?php echo htmlspecialchars(formatirajVrstuKontrole($evidencija['vrsta_kontrole'])); ?></dd>
                 <dt class="col-sm-4">Datum i vreme:</dt><dd class="col-sm-8"><?php echo date('d.m.Y H:i:s', strtotime($evidencija['datum_vreme_ispitivanja'])); ?></dd>
                 <dt class="col-sm-4">Kontrolor:</dt><dd class="col-sm-8"><?php echo htmlspecialchars($evidencija['kontrolor_puno_ime']); ?></dd>
                 <dt class="col-sm-4">Korišćen plan:</dt><dd class="col-sm-8"><?php echo htmlspecialchars($evidencija['plan']['broj_plana_kontrole'] ?? 'N/A'); ?> (Verzija: <?php echo htmlspecialchars($evidencija['plan']['verzija_broj'] ?? 'N/A'); ?>)</dd>
@@ -146,6 +161,49 @@ if (session_status() == PHP_SESSION_NONE) { session_start(); }
         <div class="card-header">Ostale Napomene</div>
         <div class="card-body">
             <p><?php echo nl2br(htmlspecialchars($evidencija['ostale_napomene'])); ?></p>
+        </div>
+    </div>
+    <?php endif; ?>
+
+    <?php if (isset($istorija) && !empty($istorija)): ?>
+    <div class="card mt-4">
+        <div class="card-header">
+            <h4><i class="fa-solid fa-history me-2"></i>Istorija kontrola za ovaj proizvod</h4>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-striped table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>ID</th>
+                            <th>Datum i vreme</th>
+                            <th>Vrsta kontrole</th>
+                            <th>Kontrolor</th>
+                            <th class="text-end">Akcije</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($istorija as $stari_zapis): ?>
+                            <tr>
+                                <td>#<?php echo $stari_zapis['id']; ?></td>
+                                <td><?php echo date('d.m.Y H:i', strtotime($stari_zapis['datum_vreme_ispitivanja'])); ?></td>
+                                <td><?php echo formatirajVrstuKontrole($stari_zapis['vrsta_kontrole']); ?></td>
+                                <td><?php echo htmlspecialchars($stari_zapis['kontrolor_puno_ime'] ?? 'N/A'); ?></td>
+                                <td class="text-end">
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <a href="<?php echo rtrim(APP_URL, '/'); ?>/public/index.php?page=kontrolor_zapis_show&id=<?php echo $stari_zapis['id']; ?>" class="btn btn-outline-primary" title="Pregledaj"><i class="fa-solid fa-eye"></i></a>
+                                        <a href="?action=generate_single_report&id=<?php echo $stari_zapis['id']; ?>" class="btn btn-outline-success" target="_blank" title="Generiši PDF"><i class="fa-solid fa-file-pdf"></i></a>
+                                        <?php if (isset($_SESSION['user_uloga']) && $_SESSION['user_uloga'] === 'administrator'): ?>
+                                            <a href="<?php echo rtrim(APP_URL, '/'); ?>/public/index.php?page=kontrolor_zapis_edit&id=<?php echo $stari_zapis['id']; ?>" class="btn btn-outline-secondary" title="Izmeni"><i class="fa-solid fa-pen"></i></a>
+                                            <a href="#" class="btn btn-outline-danger" title="Obriši" data-bs-toggle="modal" data-bs-target="#confirmDeleteModal" data-delete-url="index.php?action=evidencija_delete&id=<?php echo $stari_zapis['id']; ?>"><i class="fa-solid fa-trash"></i></a>
+                                        <?php endif; ?>
+                                    </div>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
     <?php endif; ?>

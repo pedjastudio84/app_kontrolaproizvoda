@@ -398,5 +398,35 @@ class Evidencija {
             return [];
         }
     }
+
+    /**
+     * Dohvata istoriju svih evidencija za proizvod na osnovu identa i serijskog broja.
+     *
+     * @param string $ident Ident proizvoda.
+     * @param string $serijskiBroj Serijski broj proizvoda.
+     * @param int $excludeId ID evidencije koju treba isključiti iz rezultata (ona koja se trenutno gleda).
+     * @return array Lista istorijskih zapisa.
+     */
+    public function getHistoryForProduct($ident, $serijskiBroj, $excludeId) {
+        $sql = "SELECT e.id, e.datum_vreme_ispitivanja, e.vrsta_kontrole, CONCAT(u.ime, ' ', u.prezime) as kontrolor_puno_ime
+                FROM evidencije_kontrole e
+                LEFT JOIN korisnici u ON e.kontrolor_id = u.id
+                WHERE e.product_ident_sken = :ident
+                  AND e.product_serijski_broj_sken = :serijski
+                  AND e.id != :exclude_id
+                ORDER BY e.datum_vreme_ispitivanja DESC";
+        try {
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute([
+                ':ident' => $ident,
+                ':serijski' => $serijskiBroj,
+                ':exclude_id' => $excludeId
+            ]);
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            error_log("Greška u Evidencija::getHistoryForProduct: " . $e->getMessage());
+            return [];
+        }
+    }
 }
 ?>

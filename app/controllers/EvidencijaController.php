@@ -137,7 +137,6 @@ class EvidencijaController {
         $evidencija = $this->evidencijaModel->getByIdWithDetails($id);
         $redirectPage = ($_SESSION['user_uloga'] === 'administrator') ? 'admin_evidencije' : 'kontrolor_moji_zapisi';
 
-        // ISPRAVLJENO: Vrednosti se eksplicitno pretvaraju u integer pre poređenja
         if (!$evidencija || ($_SESSION['user_uloga'] === 'kontrolor' && (int)$evidencija['kontrolor_id'] != (int)$_SESSION['user_id'])) {
             $_SESSION['error_message'] = 'Traženi zapis nije pronađen ili nemate dozvolu za pregled.';
             header('Location: ' . rtrim(APP_URL, '/') . '/public/index.php?page=' . $redirectPage);
@@ -146,7 +145,19 @@ class EvidencijaController {
         if (!defined('PAGE_TITLE')) {
             define('PAGE_TITLE', 'Pregled Zapisa #' . $evidencija['id']);
         }
-        return ['evidencija' => $evidencija];
+
+        // Dohvatanje istorije zapisa za isti proizvod
+        $istorija = $this->evidencijaModel->getHistoryForProduct(
+            $evidencija['product_ident_sken'],
+            $evidencija['product_serijski_broj_sken'],
+            $id
+        );
+
+        // Prosleđivanje svih podataka u view
+        return [
+            'evidencija' => $evidencija,
+            'istorija' => $istorija
+        ];
     }
 
     /**
@@ -157,7 +168,6 @@ class EvidencijaController {
         $evidencija = $this->evidencijaModel->getByIdWithDetails($id);
         $redirectPage = ($_SESSION['user_uloga'] === 'administrator') ? 'admin_evidencije' : 'kontrolor_moji_zapisi';
         
-        // ISPRAVLJENO: Vrednosti se eksplicitno pretvaraju u integer pre poređenja
         if (!$evidencija || ($_SESSION['user_uloga'] === 'kontrolor' && (int)$evidencija['kontrolor_id'] != (int)$_SESSION['user_id'])) {
             $_SESSION['error_message'] = 'Traženi zapis nije pronađen ili nemate dozvolu za izmenu.';
             header('Location: ' . rtrim(APP_URL, '/') . '/public/index.php?page=' . $redirectPage);
@@ -226,7 +236,6 @@ class EvidencijaController {
 
         $evidencija = $this->evidencijaModel->getByIdWithDetails($id);
         
-        // ISPRAVLJENO: Vrednosti se eksplicitno pretvaraju u integer pre poređenja
         if (!$evidencija || ($_SESSION['user_uloga'] === 'kontrolor' && (int)$evidencija['kontrolor_id'] != (int)$_SESSION['user_id'])) {
             $_SESSION['error_message'] = 'Nemate dozvolu za izmenu ovog zapisa.';
             header('Location: ' . rtrim(APP_URL, '/') . '/public/index.php?page=' . $redirectPage);
@@ -259,7 +268,6 @@ class EvidencijaController {
         if (!$evidencija) {
             $_SESSION['error_message'] = 'Zapis nije pronađen.';
         } 
-        // ISPRAVLJENO: Vrednosti se eksplicitno pretvaraju u integer pre poređenja
         elseif ($_SESSION['user_uloga'] === 'kontrolor' && (int)$evidencija['kontrolor_id'] != (int)$_SESSION['user_id']) {
             $_SESSION['error_message'] = 'Nemate dozvolu da obrišete ovaj zapis.';
         } else {
