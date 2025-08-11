@@ -50,6 +50,43 @@ function buildChecklist(plan) {
     document.getElementById('checklist-kontejner').innerHTML = html;
 }
 
+// --- Funkcija za ažuriranje UI na osnovu vrste kontrole ---
+function updateFormForVrstaKontrole(vrsta) {
+    const imeKupcaKontejner = document.getElementById('ime-kupca-kontejner');
+    const napomeneHeadingNumber = document.getElementById('napomene-heading-number');
+
+    if (vrsta === 'kontrola_pre_isporuke') {
+        if(imeKupcaKontejner) imeKupcaKontejner.style.display = 'block';
+        if(napomeneHeadingNumber) napomeneHeadingNumber.textContent = '6';
+    } else {
+        if(imeKupcaKontejner) imeKupcaKontejner.style.display = 'none';
+        if(napomeneHeadingNumber) napomeneHeadingNumber.textContent = '5';
+    }
+}
+
+// --- NOVA FUNKCIJA ZA AŽURIRANJE H1 NASLOVA ---
+function updatePageTitle(vrstaKontrole) {
+    let titleText = 'Novi Zapis';
+    let subTitle = '';
+
+    switch (vrstaKontrole) {
+        case 'redovna_kontrola':
+            subTitle = 'Redovna kontrola';
+            break;
+        case 'kontrola_pre_isporuke':
+            subTitle = 'Kontrola pre isporuke';
+            break;
+        case 'vanredna_kontrola':
+            subTitle = 'Vanredna kontrola';
+            break;
+    }
+
+    const pageTitleElement = document.getElementById('page-main-title');
+    if (pageTitleElement && subTitle) {
+        pageTitleElement.textContent = `${titleText} - ${subTitle}`;
+    }
+}
+
 
 // --- Ostatak koda koji se izvršava odmah ---
 const isEditMode = pageConfig.isEdit;
@@ -62,6 +99,10 @@ let compressedFiles = [];
 const identInput = document.getElementById('ident');
 const kataloskaOznakaInput = document.getElementById('kataloska_oznaka');
 const serijskiBrojInput = document.getElementById('serijski_broj');
+const vrstaKontroleInput = document.getElementById('vrsta_kontrole_input');
+
+// Odmah na učitavanju stranice, pozivamo funkciju da podesi formu na osnovu početnog stanja
+updateFormForVrstaKontrole(pageConfig.vrstaKontrole);
 
 async function handleImageUpload(fileInput) {
     const imageFile = fileInput.files[0];
@@ -129,20 +170,22 @@ if (!isEditMode && !hasFormData) {
     const canvasElement = document.getElementById("canvas");
     const canvas = canvasElement.getContext("2d");
     const loadingMessage = document.getElementById("loadingMessage");
-    const outputMessage = document.getElementById("outputMessage");
-    const outputData = document.getElementById("outputData");
-    const outputDataContainer = document.getElementById("outputDataContainer");
     const startScanBtn = document.getElementById("startScanBtn");
     const stopScanBtn = document.getElementById("stopScanBtn");
     const scannerContainer = document.getElementById("scanner-container");
     const unlockFieldsBtn = document.getElementById("unlockFieldsBtn");
     const checklistContainer = document.getElementById('checklist-kontejner');
+    
+    const choiceModalEl = document.getElementById('choiceModal');
+    const choiceModal = new bootstrap.Modal(choiceModalEl);
+    let scannedIdentForChoice = null;
+
     let stream = null;
     let animationFrameId = null;
 
-    function stopScan() { if (animationFrameId) { cancelAnimationFrame(animationFrameId); animationFrameId = null; } if (stream) { stream.getTracks().forEach(track => track.stop()); stream = null; } video.srcObject = null; scannerContainer.style.display = 'none'; loadingMessage.textContent = "🎥 Kamera nije aktivna."; loadingMessage.style.display = 'block'; startScanBtn.style.display = 'inline-block'; stopScanBtn.style.display = 'none'; outputMessage.hidden = true; }
-    async function startScan() { stopScan(); loadingMessage.textContent = "🎥 Pokrećem kameru..."; outputMessage.hidden = false; outputDataContainer.hidden = true; try { const mediaStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } }); stream = mediaStream; video.srcObject = mediaStream; video.setAttribute('playsinline', true); await video.play(); scannerContainer.style.display = 'block'; loadingMessage.style.display = 'none'; startScanBtn.style.display = 'none'; stopScanBtn.style.display = 'inline-block'; animationFrameId = requestAnimationFrame(tick); } catch (error) { console.error('Greška:', error); loadingMessage.textContent = `🚫 ${error.name}`; stopScan(); } }
-
+    function stopScan() { if (animationFrameId) { cancelAnimationFrame(animationFrameId); animationFrameId = null; } if (stream) { stream.getTracks().forEach(track => track.stop()); stream = null; } video.srcObject = null; scannerContainer.style.display = 'none'; loadingMessage.textContent = "🎥 Kamera nije aktivna."; loadingMessage.style.display = 'block'; startScanBtn.style.display = 'inline-block'; stopScanBtn.style.display = 'none'; }
+    async function startScan() { stopScan(); loadingMessage.textContent = "🎥 Pokrećem kameru..."; try { const mediaStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } }); stream = mediaStream; video.srcObject = mediaStream; video.setAttribute('playsinline', true); await video.play(); scannerContainer.style.display = 'block'; loadingMessage.style.display = 'none'; startScanBtn.style.display = 'none'; stopScanBtn.style.display = 'inline-block'; animationFrameId = requestAnimationFrame(tick); } catch (error) { console.error('Greška:', error); loadingMessage.textContent = `🚫 ${error.name}`; stopScan(); } }
+    
     function tick() {
         if (video.readyState === video.HAVE_ENOUGH_DATA) {
             canvasElement.height = video.videoHeight;
@@ -151,10 +194,9 @@ if (!isEditMode && !hasFormData) {
             const imageData = canvas.getImageData(0, 0, canvasElement.width, canvasElement.height);
             const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: "dontInvert" });
             if (code && code.data !== "") {
-                outputData.innerText = code.data;
-                parseQRDataAndFillForm(code.data);
                 document.getElementById('beepSound').play();
                 stopScan();
+                parseQRDataAndFillForm(code.data);
             }
         }
         if (stream) { animationFrameId = requestAnimationFrame(tick); }
@@ -162,30 +204,71 @@ if (!isEditMode && !hasFormData) {
 
     function parseQRDataAndFillForm(data) {
         let identStartIndex = data.indexOf('GTP-');
-        // ISPRAVLJENA LINIJA:
         if (identStartIndex === -1) { identStartIndex = data.indexOf('GMM-'); }
         if (identStartIndex === -1) { alert("QR kod ne sadrži validan Ident (GTP- ili GMM-)."); return; }
         let trimmedData = data.substring(identStartIndex);
         const fields = trimmedData.split('|');
         if (fields.length >= 4) {
-            identInput.value = fields[0] || '';
+            const ident = fields[0] || '';
+            const serijski = (fields[fields.length - 1] || '').slice(-9);
+            
+            identInput.value = ident;
             document.getElementById('naziv').value = fields[1] || '';
             kataloskaOznakaInput.value = fields[2] || '';
-            let serijski = fields[fields.length - 1] || '';
-            if (serijski.length > 9) { serijski = serijski.slice(-9); }
             serijskiBrojInput.value = serijski;
-            identInput.dispatchEvent(new Event('change'));
+            
+            checkRecordAndProceed(ident, serijski);
         } else {
             alert("Format QR koda nije ispravan (nedovoljno polja).");
         }
     }
 
+    function checkRecordAndProceed(ident, serijski) {
+        checklistContainer.innerHTML = '<div class="alert alert-info">Provera postojeće evidencije...</div>';
+        const url = `${APP_URL_BASE}/public/index.php?action=check_existing_record&ident=${encodeURIComponent(ident)}&serijski=${encodeURIComponent(serijski)}`;
+
+        fetch(url)
+            .then(response => response.json())
+            .then(data => {
+                if (data.postoji) {
+                    scannedIdentForChoice = ident;
+                    choiceModal.show();
+                } else {
+                    const vrsta = 'redovna_kontrola';
+                    vrstaKontroleInput.value = vrsta;
+                    updatePageTitle(vrsta); // Poziv nove funkcije
+                    updateFormForVrstaKontrole(vrsta);
+                    fetchChecklist(ident);
+                }
+            })
+            .catch(error => {
+                checklistContainer.innerHTML = `<div class="alert alert-danger">Greška pri proveri: ${error.message}</div>`;
+            });
+    }
+
+    document.getElementById('btnKontrolaPreIsporuke').addEventListener('click', function() {
+        const vrsta = 'kontrola_pre_isporuke';
+        vrstaKontroleInput.value = vrsta;
+        updatePageTitle(vrsta); // Poziv nove funkcije
+        updateFormForVrstaKontrole(vrsta);
+        choiceModal.hide();
+        fetchChecklist(scannedIdentForChoice);
+    });
+
+    document.getElementById('btnVanrednaKontrola').addEventListener('click', function() {
+        const vrsta = 'vanredna_kontrola';
+        vrstaKontroleInput.value = vrsta;
+        updatePageTitle(vrsta); // Poziv nove funkcije
+        updateFormForVrstaKontrole(vrsta);
+        choiceModal.hide();
+        fetchChecklist(scannedIdentForChoice);
+    });
+
     function unlockFields() { identInput.readOnly = false; document.getElementById('naziv').readOnly = false; kataloskaOznakaInput.readOnly = false; serijskiBrojInput.readOnly = false; unlockFieldsBtn.textContent = "Polja su otključana"; unlockFieldsBtn.disabled = true; }
     startScanBtn.addEventListener('click', startScan);
     stopScanBtn.addEventListener('click', stopScan);
     unlockFieldsBtn.addEventListener('click', unlockFields);
-    identInput.addEventListener('change', function() { if (this.value) { fetchChecklist(this.value); } });
-
+    
     function fetchChecklist(ident) {
         checklistContainer.innerHTML = '<div class="alert alert-info">Učitavanje ček-liste...</div>';
         const url = `${APP_URL_BASE}/public/index.php?action=get_plan_details&ident=${encodeURIComponent(ident)}`;

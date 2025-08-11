@@ -10,7 +10,7 @@ if ($isEdit) {
     $formDataSource = $evidencija;
     $plan = $evidencija['plan'] ?? null;
 } else {
-    $vrsta_kontrole = $_GET['vrsta'] ?? ($formData['vrsta_kontrole'] ?? 'nepoznata');
+    $vrsta_kontrole = $_GET['vrsta'] ?? ($formData['vrsta_kontrole'] ?? 'redovna_kontrola'); // Default je redovna
     $vrsta_kontrole_tekst = ($vrsta_kontrole === 'redovna_kontrola') ? 'Redovna kontrola' : 'Kontrola pre isporuke';
     $pageTitle = 'Novi Zapis - ' . $vrsta_kontrole_tekst;
     $formDataSource = $formData;
@@ -26,6 +26,7 @@ if (session_status() == PHP_SESSION_NONE) {
 $rezultati = $isEdit ? $evidencija['rezultati'] : ($formDataSource['rezultati'] ?? []);
 ?>
 
+
 <div class="container-fluid">
     <nav aria-label="breadcrumb">
         <ol class="breadcrumb">
@@ -38,7 +39,7 @@ $rezultati = $isEdit ? $evidencija['rezultati'] : ($formDataSource['rezultati'] 
             <li class="breadcrumb-item active" aria-current="page"><?php echo $isEdit ? 'Izmena zapisa #' . $evidencija['id'] : 'Novi zapis'; ?></li>
         </ol>
     </nav>
-    <h1><?php echo htmlspecialchars($pageTitle); ?></h1>
+    <h1 id="page-main-title"><?php echo htmlspecialchars($pageTitle); ?></h1>
 
     <?php
     if (isset($_SESSION['error_message'])) {
@@ -49,7 +50,7 @@ $rezultati = $isEdit ? $evidencija['rezultati'] : ($formDataSource['rezultati'] 
     <hr>
     
     <form id="forma-za-evidenciju" class="form-with-unsaved-check" method="POST" action="<?php echo rtrim(APP_URL, '/'); ?>/public/index.php?action=<?php echo $isEdit ? 'evidencija_update&id='.$evidencija['id'] : 'evidencija_store'; ?>" enctype="multipart/form-data">
-        <input type="hidden" name="vrsta_kontrole" value="<?php echo htmlspecialchars($vrsta_kontrole); ?>">
+        <input type="hidden" name="vrsta_kontrole" id="vrsta_kontrole_input" value="<?php echo htmlspecialchars($vrsta_kontrole); ?>">
         <input type="hidden" name="plan_kontrole_id" value="<?php echo htmlspecialchars($formDataSource['plan_kontrole_id'] ?? ($plan['id'] ?? '')); ?>">
     
         <div class="row">
@@ -195,18 +196,18 @@ $rezultati = $isEdit ? $evidencija['rezultati'] : ($formDataSource['rezultati'] 
             <p class="form-text text-muted">Maksimalno 5 fotografija. Fotografije će biti automatski kompresovane pre slanja.</p>
         
         <hr>
-        <?php if ($vrsta_kontrole === 'kontrola_pre_isporuke'): ?>
-            <div id="ime-kupca-kontejner">
-                <h4>5. Podaci o Kupcu</h4>
-                <div class="mb-3">
-                    <label for="ime_kupca" class="form-label">Ime Kupca (opciono)</label>
-                    <input type="text" class="form-control" id="ime_kupca" name="ime_kupca" value="<?php echo htmlspecialchars($formDataSource['ime_kupca'] ?? ''); ?>">
-                </div>
+        
+        <div id="ime-kupca-kontejner" style="display:none;">
+            <h4>5. Podaci o Kupcu</h4>
+            <div class="mb-3">
+                <label for="ime_kupca" class="form-label">Ime Kupca (opciono)</label>
+                <input type="text" class="form-control" id="ime_kupca" name="ime_kupca" value="<?php echo htmlspecialchars($formDataSource['ime_kupca'] ?? ''); ?>">
             </div>
             <hr>
-        <?php endif; ?>
+        </div>
+
         <div id="ostale-napomene-kontejner">
-            <h4><?php echo ($vrsta_kontrole === 'kontrola_pre_isporuke') ? '6.' : '5.'; ?> Ostale napomene</h4>
+            <h4><span id="napomene-heading-number">5</span>. Ostale napomene</h4>
             <textarea class="form-control" name="ostale_napomene" rows="4" placeholder="Unesite ostale napomene ukoliko ih ima..."><?php echo htmlspecialchars($formDataSource['ostale_napomene'] ?? ''); ?></textarea>
         </div>
 
@@ -226,17 +227,38 @@ $rezultati = $isEdit ? $evidencija['rezultati'] : ($formDataSource['rezultati'] 
             </div>
         </div>
     </div>
+    
+    <div class="modal fade" id="choiceModal" tabindex="-1" aria-labelledby="choiceModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="choiceModalLabel"><i class="fa-solid fa-triangle-exclamation text-warning me-2"></i> Evidencija Već Postoji</h5>
+            </div>
+            <div class="modal-body">
+                <p>Za skenirani proizvod već postoji redovna kontrola.</p>
+                <p class="fw-bold">Izaberite tip nove kontrole koju želite da započnete:</p>
+            </div>
+            <div class="modal-footer justify-content-center">
+                <button type="button" class="btn btn-primary" id="btnKontrolaPreIsporuke">Kontrola pre isporuke</button>
+                <button type="button" class="btn btn-info" id="btnVanrednaKontrola">Vanredna kontrola</button>
+            </div>
+            </div>
+        </div>
+    </div>
+
 </div>
 
 <script src="<?php echo rtrim(APP_URL, '/'); ?>/public/js/jsQR.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/browser-image-compression@2.0.1/dist/browser-image-compression.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <audio id="beepSound" src="<?php echo rtrim(APP_URL, '/'); ?>/public/sounds/beep.mp3"></audio>
 
 <script>
     const pageConfig = {
         isEdit: <?php echo $isEdit ? 'true' : 'false'; ?>,
         hasFormData: <?php echo $hasFormData ? 'true' : 'false'; ?>,
-        appUrl: "<?php echo rtrim(APP_URL, '/'); ?>"
+        appUrl: "<?php echo rtrim(APP_URL, '/'); ?>",
+        vrstaKontrole: "<?php echo htmlspecialchars($vrsta_kontrole); ?>"
     };
 </script>
 

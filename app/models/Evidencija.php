@@ -158,20 +158,60 @@ class Evidencija {
     }
 
     public function getByIdWithDetails($id) {
-        $sql = "SELECT e.*, 
-                       CONCAT(u.ime, ' ', u.prezime) as kontrolor_puno_ime 
-                FROM evidencije_kontrole e 
-                JOIN korisnici u ON e.kontrolor_id = u.id 
-                WHERE e.id = :id";
+    // IZMENJENO: "JOIN" je promenjen u "LEFT JOIN" da bi se prikazali i zapisi obrisanih korisnika
+    $sql = "SELECT e.*, 
+                   CONCAT(u.ime, ' ', u.prezime) as kontrolor_puno_ime 
+            FROM evidencije_kontrole e 
+            LEFT JOIN korisnici u ON e.kontrolor_id = u.id 
+            WHERE e.id = :id";
+    $stmt = $this->db->prepare($sql);
+    $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+    $stmt->execute();
+    $evidencija = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$evidencija) {
+        return false;
+    }
+
+    if (!empty($evidencija['plan_kontrole_id'])) {
+        $planKontroleModel = new PlanKontrole($this->db);
+        $evidencija['plan'] = $planKontroleModel->getPlanByIdWithDetails($evidencija['plan_kontrole_id']);
+    } else {
+        $evidencija['plan'] = null;
+    }
+    
+    $sqlRezultati = "SELECT rke.*, 
+                            kp.redni_broj_karakteristike, 
+                            kp.kontrolni_alat_nacin, 
+                            gkp.naziv_grupe 
+                     FROM rezultati_karakteristika_evidencije rke 
+                     LEFT JOIN karakteristike_plana kp ON rke.karakteristika_plana_id = kp.id 
+                     LEFT JOIN grupe_karakteristika_plana gkp ON kp.grupa_karakteristika_id = gkp.id 
+                     WHERE rke.evidencija_kontrole_id = :id 
+                     ORDER BY gkp.redosled_prikaza ASC, kp.redni_broj_karakteristike ASC";
+    
+    $stmtRezultati = $this->db->prepare($sqlRezultati);
+    $stmtRezultati->bindParam(':id', $id, PDO::PARAM_INT);
+    $stmtRezultati->execute();
+    $evidencija['rezultati'] = $stmtRezultati->fetchAll(PDO::FETCH_ASSOC);
+
+    $sqlFotografije = "SELECT * FROM fotografije_masine_evidencije WHERE evidencija_kontrole_id = :id ORDER BY id ASC";
+    $stmtFotografije = $this->db->prepare($sqlFotografije);
+    $stmtFotografije->bindParam(':id', $id, PDO::PARAM_INT);
+    $stmtFotografije->execute();
+    $evidencija['fotografije_masine'] = $stmtFotografije->fetchAll(PDO::FETCH_ASSOC);
+
+    return $evidencija;
+}
+
+public function findByProductDetails($ident, $serijskiBroj) {
+        $sql = "SELECT id FROM evidencije_kontrole WHERE product_ident_sken = :ident AND product_serijski_broj_sken = :serijski";
         $stmt = $this->db->prepare($sql);
-        $stmt->bindParam(':id', $id, PDO::PARAM_INT);
-        $stmt->execute();
-        $evidencija = $stmt->fetch(PDO::FETCH_ASSOC);
-
-        if (!$evidencija) {
-            return false;
-        }
-
+        $stmt->execute([
+            ':ident' => $ident,
+            ':serijski' => $serijskiBroj
+        ]);
+        return $stmt->fetch() !== false;
         // --- NOVA LOGIKA ZA UČITAVANJE PLANA ---
         if (!empty($evidencija['plan_kontrole_id'])) {
             $planKontroleModel = new PlanKontrole($this->db);

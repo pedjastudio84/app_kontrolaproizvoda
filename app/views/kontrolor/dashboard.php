@@ -27,7 +27,7 @@ if (session_status() == PHP_SESSION_NONE) {
             <div class="card h-100"><div class="card-body text-center">
                 <h5 class="card-title">Nova Kontrola</h5>
                 <p class="card-text">Započnite novu evidenciju kontrole.</p>
-                <a href="?page=kontrolor_biraj_vrstu" class="btn btn-primary btn-lg">Započni Novi Zapis</a>
+                <a href="?page=kontrolor_novi_zapis" class="btn btn-primary btn-lg">Započni Novi Zapis</a>
             </div></div>
         </div>
         <div class="col-md-6 mb-3">

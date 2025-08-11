@@ -73,6 +73,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         case 'admin_user_delete': $userController->delete($id); exit;
         case 'admin_plan_delete': $planKontroleController->delete($id); exit;
         case 'get_plan_details': $planKontroleController->getPlanForAjax(); exit;
+        case 'check_existing_record': $evidencijaController->checkExistingRecord(); exit;
         case 'evidencija_delete': $evidencijaController->delete($id); exit;
         case 'generate_single_report': $reportController->generateSingleReport($id); exit;
         case 'generate_plan_pdf': $reportController->generatePlanReport($id); exit;
@@ -153,7 +154,20 @@ switch ($page) {
     case 'admin_evidencije': $data_for_view = $evidencijaController->listAll(); $view_file_path = VIEWS_PATH . '/admin/evidencije/list.php'; break;
     case 'admin_reports': $data_for_view = $reportController->showReportForm(); $view_file_path = VIEWS_PATH . '/admin/izvestaji/form.php'; break;
     case 'kontrolor_biraj_vrstu': if (!isset($_SESSION['logged_in']) || !in_array($_SESSION['user_uloga'], ['kontrolor', 'administrator'])) { $_SESSION['error_message'] = 'Nemate dozvolu.'; header('Location: ' . $redirect_url_on_auth_fail); exit; } $view_file_path = VIEWS_PATH . '/kontrolor/biraj_vrstu.php'; break;
-    case 'kontrolor_novi_zapis': if (!isset($_SESSION['logged_in']) || !in_array($_SESSION['user_uloga'], ['kontrolor', 'administrator'])) { $_SESSION['error_message'] = 'Nemate dozvolu.'; header('Location: ' . $redirect_url_on_auth_fail); exit; } if (!isset($_GET['vrsta']) || !in_array($_GET['vrsta'], ['redovna_kontrola', 'kontrola_pre_isporuke'])) { $_SESSION['error_message'] = 'Nije definisana validna vrsta kontrole.'; header('Location: ' . rtrim(APP_URL, '/') . '/public/index.php?page=kontrolor_biraj_vrstu'); exit; } $data_for_view = $evidencijaController->create(); $view_file_path = VIEWS_PATH . '/kontrolor/evidencija/form.php'; break;
+    
+    // --- IZMENJENA RUTA ---
+    case 'kontrolor_novi_zapis': 
+        if (!isset($_SESSION['logged_in']) || !in_array($_SESSION['user_uloga'], ['kontrolor', 'administrator'])) { 
+            $_SESSION['error_message'] = 'Nemate dozvolu.'; 
+            header('Location: ' . $redirect_url_on_auth_fail); 
+            exit; 
+        } 
+        // Uklonjena je provera za $_GET['vrsta'] jer više nije neophodna
+        $data_for_view = $evidencijaController->create(); 
+        $view_file_path = VIEWS_PATH . '/kontrolor/evidencija/form.php'; 
+        break;
+    // --- KRAJ IZMENE ---
+        
     case 'kontrolor_moji_zapisi': if (!isset($_SESSION['logged_in']) || !in_array($_SESSION['user_uloga'], ['kontrolor', 'administrator'])) { $_SESSION['error_message'] = 'Nemate dozvolu.'; header('Location: ' . $redirect_url_on_auth_fail); exit; } $data_for_view = $evidencijaController->index(); $view_file_path = VIEWS_PATH . '/kontrolor/evidencija/list.php'; break;
     case 'kontrolor_zapis_show': if (!isset($_SESSION['logged_in'])) { $_SESSION['error_message'] = 'Morate biti prijavljeni.'; header('Location: ' . $redirect_url_on_auth_fail); exit; } $data_for_view = $evidencijaController->show($id); $view_file_path = VIEWS_PATH . '/kontrolor/evidencija/show.php'; break;
     case 'kontrolor_zapis_edit': if (!isset($_SESSION['logged_in']) || !in_array($_SESSION['user_uloga'], ['kontrolor', 'administrator'])) { $_SESSION['error_message'] = 'Nemate dozvolu.'; header('Location: ' . $redirect_url_on_auth_fail); exit; } $data_for_view = $evidencijaController->edit($id); $view_file_path = VIEWS_PATH . '/kontrolor/evidencija/form.php'; break;
