@@ -235,7 +235,7 @@ $rezultati = $isEdit ? $evidencija['rezultati'] : ($formDataSource['rezultati'] 
                 <h5 class="modal-title" id="choiceModalLabel"><i class="fa-solid fa-triangle-exclamation text-warning me-2"></i> Evidencija Već Postoji</h5>
             </div>
             <div class="modal-body">
-                <p>Za skenirani proizvod već postoji redovna kontrola.</p>
+                <p id="existing-record-message">Za skenirani proizvod već postoji redovna kontrola.</p>
                 <p class="fw-bold">Izaberite tip nove kontrole koju želite da započnete:</p>
             </div>
             <div class="modal-footer justify-content-center">

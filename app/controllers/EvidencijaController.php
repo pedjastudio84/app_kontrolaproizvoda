@@ -294,10 +294,10 @@ class EvidencijaController {
             exit;
         }
 
-        $postoji = $this->evidencijaModel->findByProductDetails($ident, $serijski);
+        $record = $this->evidencijaModel->findByProductDetails($ident, $serijski);
 
         header('Content-Type: application/json; charset=utf-8');
-        echo json_encode(['postoji' => $postoji]);
+        echo json_encode(['postoji' => ($record !== false), 'data' => $record]);
         exit;
     }
 }

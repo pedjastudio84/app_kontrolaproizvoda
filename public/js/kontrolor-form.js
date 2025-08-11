@@ -230,13 +230,21 @@ if (!isEditMode && !hasFormData) {
         fetch(url)
             .then(response => response.json())
             .then(data => {
-                if (data.postoji) {
+                if (data.postoji && data.data) {
                     scannedIdentForChoice = ident;
+                    const messageElement = document.getElementById('existing-record-message');
+                    if (messageElement) {
+                        const datumVreme = new Date(data.data.datum_vreme_ispitivanja);
+                        const formattedDate = datumVreme.toLocaleDateString('sr-RS', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                        const kataloskaOznaka = data.data.product_kataloska_oznaka_sken || 'N/A';
+
+                        messageElement.innerHTML = `Proizvod "<strong>${kataloskaOznaka}</strong>" sa serijskim brojem "<strong>${serijski}</strong>" je kontrolisan dana "<strong>${formattedDate}</strong>".`;
+                    }
                     choiceModal.show();
                 } else {
                     const vrsta = 'redovna_kontrola';
                     vrstaKontroleInput.value = vrsta;
-                    updatePageTitle(vrsta); // Poziv nove funkcije
+                    updatePageTitle(vrsta);
                     updateFormForVrstaKontrole(vrsta);
                     fetchChecklist(ident);
                 }

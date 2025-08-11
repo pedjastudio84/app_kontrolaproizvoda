@@ -158,79 +158,36 @@ class Evidencija {
     }
 
     public function getByIdWithDetails($id) {
-    // IZMENJENO: "JOIN" je promenjen u "LEFT JOIN" da bi se prikazali i zapisi obrisanih korisnika
-    $sql = "SELECT e.*, 
-                   CONCAT(u.ime, ' ', u.prezime) as kontrolor_puno_ime 
-            FROM evidencije_kontrole e 
-            LEFT JOIN korisnici u ON e.kontrolor_id = u.id 
-            WHERE e.id = :id";
-    $stmt = $this->db->prepare($sql);
-    $stmt->bindParam(':id', $id, PDO::PARAM_INT);
-    $stmt->execute();
-    $evidencija = $stmt->fetch(PDO::FETCH_ASSOC);
-
-    if (!$evidencija) {
-        return false;
-    }
-
-    if (!empty($evidencija['plan_kontrole_id'])) {
-        $planKontroleModel = new PlanKontrole($this->db);
-        $evidencija['plan'] = $planKontroleModel->getPlanByIdWithDetails($evidencija['plan_kontrole_id']);
-    } else {
-        $evidencija['plan'] = null;
-    }
-    
-    $sqlRezultati = "SELECT rke.*, 
-                            kp.redni_broj_karakteristike, 
-                            kp.kontrolni_alat_nacin, 
-                            gkp.naziv_grupe 
-                     FROM rezultati_karakteristika_evidencije rke 
-                     LEFT JOIN karakteristike_plana kp ON rke.karakteristika_plana_id = kp.id 
-                     LEFT JOIN grupe_karakteristika_plana gkp ON kp.grupa_karakteristika_id = gkp.id 
-                     WHERE rke.evidencija_kontrole_id = :id 
-                     ORDER BY gkp.redosled_prikaza ASC, kp.redni_broj_karakteristike ASC";
-    
-    $stmtRezultati = $this->db->prepare($sqlRezultati);
-    $stmtRezultati->bindParam(':id', $id, PDO::PARAM_INT);
-    $stmtRezultati->execute();
-    $evidencija['rezultati'] = $stmtRezultati->fetchAll(PDO::FETCH_ASSOC);
-
-    $sqlFotografije = "SELECT * FROM fotografije_masine_evidencije WHERE evidencija_kontrole_id = :id ORDER BY id ASC";
-    $stmtFotografije = $this->db->prepare($sqlFotografije);
-    $stmtFotografije->bindParam(':id', $id, PDO::PARAM_INT);
-    $stmtFotografije->execute();
-    $evidencija['fotografije_masine'] = $stmtFotografije->fetchAll(PDO::FETCH_ASSOC);
-
-    return $evidencija;
-}
-
-public function findByProductDetails($ident, $serijskiBroj) {
-        $sql = "SELECT id FROM evidencije_kontrole WHERE product_ident_sken = :ident AND product_serijski_broj_sken = :serijski";
+        $sql = "SELECT e.*, 
+                    CONCAT(u.ime, ' ', u.prezime) as kontrolor_puno_ime 
+                FROM evidencije_kontrole e 
+                LEFT JOIN korisnici u ON e.kontrolor_id = u.id 
+                WHERE e.id = :id";
         $stmt = $this->db->prepare($sql);
-        $stmt->execute([
-            ':ident' => $ident,
-            ':serijski' => $serijskiBroj
-        ]);
-        return $stmt->fetch() !== false;
-        // --- NOVA LOGIKA ZA UČITAVANJE PLANA ---
+        $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+        $stmt->execute();
+        $evidencija = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$evidencija) {
+            return false;
+        }
+
         if (!empty($evidencija['plan_kontrole_id'])) {
             $planKontroleModel = new PlanKontrole($this->db);
-            // Učitavamo kompletan plan sa svim grupama i karakteristikama
             $evidencija['plan'] = $planKontroleModel->getPlanByIdWithDetails($evidencija['plan_kontrole_id']);
         } else {
             $evidencija['plan'] = null;
         }
-        // --- KRAJ NOVE LOGIKE ---
         
         $sqlRezultati = "SELECT rke.*, 
                                 kp.redni_broj_karakteristike, 
                                 kp.kontrolni_alat_nacin, 
                                 gkp.naziv_grupe 
-                         FROM rezultati_karakteristika_evidencije rke 
-                         LEFT JOIN karakteristike_plana kp ON rke.karakteristika_plana_id = kp.id 
-                         LEFT JOIN grupe_karakteristika_plana gkp ON kp.grupa_karakteristika_id = gkp.id 
-                         WHERE rke.evidencija_kontrole_id = :id 
-                         ORDER BY gkp.redosled_prikaza ASC, kp.redni_broj_karakteristike ASC";
+                        FROM rezultati_karakteristika_evidencije rke 
+                        LEFT JOIN karakteristike_plana kp ON rke.karakteristika_plana_id = kp.id 
+                        LEFT JOIN grupe_karakteristika_plana gkp ON kp.grupa_karakteristika_id = gkp.id 
+                        WHERE rke.evidencija_kontrole_id = :id 
+                        ORDER BY gkp.redosled_prikaza ASC, kp.redni_broj_karakteristike ASC";
         
         $stmtRezultati = $this->db->prepare($sqlRezultati);
         $stmtRezultati->bindParam(':id', $id, PDO::PARAM_INT);
@@ -245,8 +202,21 @@ public function findByProductDetails($ident, $serijskiBroj) {
 
         return $evidencija;
     }
+
+    public function findByProductDetails($ident, $serijskiBroj) {
+        $sql = "SELECT id, product_kataloska_oznaka_sken, datum_vreme_ispitivanja 
+                FROM evidencije_kontrole 
+                WHERE product_ident_sken = :ident AND product_serijski_broj_sken = :serijski
+                ORDER BY datum_vreme_ispitivanja DESC
+                LIMIT 1";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([
+            ':ident' => $ident,
+            ':serijski' => $serijskiBroj
+        ]);
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
     
-    // Ostatak metoda ostaje nepromenjen...
     public function deleteById($id) {
         try {
             $stmt = $this->db->prepare("DELETE FROM evidencije_kontrole WHERE id = :id");
@@ -282,9 +252,9 @@ public function findByProductDetails($ident, $serijskiBroj) {
         $sql = "SELECT * FROM evidencije_kontrole WHERE kontrolor_id = :kontrolor_id";
         $whereClauses = [];
         $params = [':kontrolor_id' => $kontrolorId];
-        if (!empty($searchParams['ident'])) { $whereClauses[] = "product_ident_sken LIKE :ident"; $params[':ident'] = '%' . $searchParams['ident'] . '%'; }
-        if (!empty($searchParams['kataloska'])) { $whereClauses[] = "product_kataloska_oznaka_sken LIKE :kataloska"; $params[':kataloska'] = '%' . $searchParams['kataloska'] . '%'; }
-        if (!empty($searchParams['serijski'])) { $whereClauses[] = "product_serijski_broj_sken LIKE :serijski"; $params[':serijski'] = '%' . $searchParams['serijski'] . '%'; }
+        if (!empty($searchParams['ident'])) { $whereClauses[] = "product_ident_sken LIKE :ident"; $params[':ident'] = '%' . $search_params['ident'] . '%'; }
+        if (!empty($searchParams['kataloska'])) { $whereClauses[] = "product_kataloska_oznaka_sken LIKE :kataloska"; $params[':kataloska'] = '%' . $search_params['kataloska'] . '%'; }
+        if (!empty($searchParams['serijski'])) { $whereClauses[] = "product_serijski_broj_sken LIKE :serijski"; $params[':serijski'] = '%' . $search_params['serijski'] . '%'; }
         if (!empty($whereClauses)) {
             $sql .= " AND " . implode(" AND ", $whereClauses);
         }
