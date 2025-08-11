@@ -1,3 +1,15 @@
+<?php
+// === NOVI KOD: Definišemo ispravan link za pregled evidencija na osnovu uloge ===
+$link_za_pregled_evidencija = '#'; // Podrazumevana vrednost
+if (isset($_SESSION['user_uloga'])) {
+    if ($_SESSION['user_uloga'] === 'administrator' || $_SESSION['user_uloga'] === 'ostali') {
+        $link_za_pregled_evidencija = rtrim(APP_URL, '/') . '/public/index.php?page=admin_evidencije';
+    } elseif ($_SESSION['user_uloga'] === 'kontrolor') {
+        $link_za_pregled_evidencija = rtrim(APP_URL, '/') . '/public/index.php?page=kontrolor_moji_zapisi';
+    }
+}
+// === KRAJ NOVOG KODA ===
+?>
 <div class="container">
     <h1>Kontrolna tabla</h1>
     <p>Dobrodošli, <strong><?php echo htmlspecialchars($_SESSION['user_ime'] ?? $_SESSION['user_korisnicko_ime']); ?></strong>!</p>
@@ -42,7 +54,7 @@
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <span><i class="fa-solid fa-table-list me-1"></i> Poslednjih 5 Evidencija</span>
-                    <a href="?page=pregled_svih_zapisa" class="btn btn-sm btn-outline-secondary">Sve evidencije <i class="fa-solid fa-arrow-right fa-xs"></i></a>
+                    <a href="<?php echo $link_za_pregled_evidencija; ?>" class="btn btn-sm btn-outline-secondary">Sve evidencije <i class="fa-solid fa-arrow-right fa-xs"></i></a>
                 </div>
                 <div class="list-group list-group-flush">
                     <?php if (isset($latest_records) && !empty($latest_records)): ?>
@@ -82,7 +94,7 @@
                                     Kreirao: <?php echo htmlspecialchars($plan['kreator_puno_ime']); ?> | <?php echo htmlspecialchars(date('d.m.Y', strtotime($plan['kreiran_datuma']))); ?>
                                     <?php
                                     // Prikazujemo datum izmene samo ako se razlikuje od datuma kreiranja
-                                    if (date('Y-m-d', strtotime($plan['azuriran_datuma'])) != date('Y-m-d', strtotime($plan['kreiran_datuma']))) {
+                                    if (date('Y-m.d', strtotime($plan['azuriran_datuma'])) != date('Y-m-d', strtotime($plan['kreiran_datuma']))) {
                                         echo ' | Izmenjen: ' . htmlspecialchars(date('d.m.Y', strtotime($plan['azuriran_datuma'])));
                                     }
                                     ?>

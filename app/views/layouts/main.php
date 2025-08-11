@@ -3,8 +3,26 @@ if (session_status() == PHP_SESSION_NONE) {
     session_start();
 }
 // KORISTIMO $page VARIJABLU KOJA JE VEĆ DEFINISANA U index.php RUTERU
-// OVO JE ISPRAVKA KOJA REŠAVA PROBLEM
 $isUserLoggedIn = isset($_SESSION['logged_in']) && $_SESSION['logged_in'] === true;
+
+// === ISPRAVLJEN KOD: Definišemo ispravan link za sve uloge ===
+$link_za_pregled_evidencija = '#'; // Podrazumevana vrednost
+$naziv_linka_evidencije = 'Pregled Evidencija'; // Podrazumevani naziv
+
+if (isset($_SESSION['user_uloga'])) {
+    if ($_SESSION['user_uloga'] === 'administrator') {
+        $link_za_pregled_evidencija = rtrim(APP_URL, '/') . '/public/index.php?page=admin_evidencije';
+        $naziv_linka_evidencije = 'Evidencije';
+    } elseif ($_SESSION['user_uloga'] === 'kontrolor') {
+        $link_za_pregled_evidencija = rtrim(APP_URL, '/') . '/public/index.php?page=kontrolor_moji_zapisi';
+        $naziv_linka_evidencije = 'Moji Zapisi';
+    } elseif ($_SESSION['user_uloga'] === 'ostali') {
+        // ISPRAVKA: Uloga 'ostali' sada ima ispravan link ka pregledu svih evidencija
+        $link_za_pregled_evidencija = rtrim(APP_URL, '/') . '/public/index.php?page=admin_evidencije';
+        $naziv_linka_evidencije = 'Pregled Evidencija';
+    }
+}
+// === KRAJ ISPRAVKE ===
 ?>
 <!DOCTYPE html>
 <html lang="sr">
@@ -64,17 +82,17 @@ $isUserLoggedIn = isset($_SESSION['logged_in']) && $_SESSION['logged_in'] === tr
                                 <?php if ($_SESSION['user_uloga'] === 'administrator'): ?>
                                     <li class="nav-item"><a class="nav-link <?php echo ($page === 'admin_dashboard') ? 'active' : ''; ?>" href="?page=admin_dashboard"><i class="fa-solid fa-house me-1"></i>Početna</a></li>
                                     <li class="nav-item"><a class="nav-link <?php echo ($page === 'admin_plans') ? 'active' : ''; ?>" href="?page=admin_plans"><i class="fa-solid fa-clipboard-list me-1"></i>Planovi Kontrole</a></li>
-                                    <li class="nav-item"><a class="nav-link <?php echo ($page === 'admin_evidencije') ? 'active' : ''; ?>" href="?page=admin_evidencije"><i class="fa-solid fa-table-list me-1"></i>Evidencije</a></li>
+                                    <li class="nav-item"><a class="nav-link <?php echo ($page === 'admin_evidencije') ? 'active' : ''; ?>" href="<?php echo $link_za_pregled_evidencija; ?>"><i class="fa-solid fa-table-list me-1"></i><?php echo $naziv_linka_evidencije; ?></a></li>
                                     <li class="nav-item"><a class="nav-link <?php echo ($page === 'admin_reports') ? 'active' : ''; ?>" href="?page=admin_reports"><i class="fa-solid fa-file-lines me-1"></i>Izveštaji</a></li>
                                     <li class="nav-item"><a class="nav-link <?php echo ($page === 'admin_users') ? 'active' : ''; ?>" href="?page=admin_users"><i class="fa-solid fa-users me-1"></i>Korisnici</a></li>
                                 <?php elseif ($_SESSION['user_uloga'] === 'kontrolor'): ?>
                                     <li class="nav-item"><a class="nav-link <?php echo ($page === 'kontrolor_dashboard') ? 'active' : ''; ?>" href="?page=kontrolor_dashboard"><i class="fa-solid fa-house me-1"></i>Početna</a></li>
                                     <li class="nav-item"><a class="nav-link <?php echo (($page === 'kontrolor_biraj_vrstu') || ($page === 'kontrolor_novi_zapis')) ? 'active' : ''; ?>" href="?page=kontrolor_novi_zapis"><i class="fa-solid fa-file-circle-plus me-1"></i>Novi Zapis</a></li>
-                                    <li class="nav-item"><a class="nav-link <?php echo ($page === 'kontrolor_moji_zapisi') ? 'active' : ''; ?>" href="?page=kontrolor_moji_zapisi"><i class="fa-solid fa-file-lines me-1"></i>Moji Zapisi</a></li>
+                                    <li class="nav-item"><a class="nav-link <?php echo ($page === 'kontrolor_moji_zapisi') ? 'active' : ''; ?>" href="<?php echo $link_za_pregled_evidencija; ?>"><i class="fa-solid fa-file-lines me-1"></i><?php echo $naziv_linka_evidencije; ?></a></li>
                                 <?php elseif ($_SESSION['user_uloga'] === 'ostali'): ?>
-                                    <li class="nav-item"><a class="nav-link <?php echo ($page === 'ostali_dashboard') ? 'active' : ''; ?>" href="?page=ostali_dashboard"><i class="fa-solid fa-house me-1"></i>Početna</a></li>
-                                    <li class="nav-item"><a class="nav-link <?php echo ($page === 'pregled_svih_zapisa') ? 'active' : ''; ?>" href="?page=pregled_svih_zapisa"><i class="fa-solid fa-table-list me-1"></i>Pregled Evidencija</a></li>
-                                    <li class="nav-item"><a class="nav-link <?php echo ($page === 'pregled_planova') ? 'active' : ''; ?>" href="?page=pregled_planova"><i class="fa-solid fa-clipboard-list me-1"></i>Pregled Planova</a></li>
+                                    <li class="nav-item"><a class="nav-link <?php echo ($page === 'ostali_dashboard' || $page === 'admin_dashboard') ? 'active' : ''; ?>" href="?page=ostali_dashboard"><i class="fa-solid fa-house me-1"></i>Početna</a></li>
+                                    <li class="nav-item"><a class="nav-link <?php echo ($page === 'admin_evidencije') ? 'active' : ''; ?>" href="<?php echo $link_za_pregled_evidencija; ?>"><i class="fa-solid fa-table-list me-1"></i><?php echo $naziv_linka_evidencije; ?></a></li>
+                                    <li class="nav-item"><a class="nav-link <?php echo ($page === 'pregled_planova'  || $page === 'admin_plans') ? 'active' : ''; ?>" href="?page=pregled_planova"><i class="fa-solid fa-clipboard-list me-1"></i>Pregled Planova</a></li>
                                 <?php endif; ?>
                             <?php endif; ?>
                         </ul>

@@ -44,9 +44,7 @@ class EvidencijaController {
         $offset = ($current_page - 1) * $items_per_page;
         
         $searchParams = [
-            'ident' => $_GET['search_ident'] ?? null,
-            'kataloska' => $_GET['search_kataloska'] ?? null,
-            'serijski' => $_GET['search_serijski'] ?? null,
+            'query' => $_GET['search'] ?? null,
         ];
         
         $evidencije = $this->evidencijaModel->getAllForUser($_SESSION['user_id'], $searchParams, $items_per_page, $offset);
@@ -62,15 +60,20 @@ class EvidencijaController {
     }
     
     /**
-     * Prikazuje listu SVIH evidencija za ADMINISTRATORA.
+     * Prikazuje listu SVIH evidencija za ADMINISTRATORA i OSTALE.
      */
     public function listAll() {
         if (session_status() == PHP_SESSION_NONE) { session_start(); }
-        if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true) {
-            $_SESSION['error_message'] = 'Morate biti prijavljeni da biste pristupili ovoj stranici.';
+        
+        // ===== ISPRAVKA DOZVOLA =====
+        // Sada proveravamo da li korisnik ima JEDNU OD DOZVOLJENIH uloga
+        if (!isset($_SESSION['logged_in']) || !in_array($_SESSION['user_uloga'], ['administrator', 'ostali'])) {
+            $_SESSION['error_message'] = 'Nemate dozvolu za pristup ovoj stranici.';
             header('Location: ' . rtrim(APP_URL, '/') . '/public/index.php?page=login');
             exit;
         }
+        // ===== KRAJ ISPRAVKE =====
+
         if (!defined('PAGE_TITLE')) {
             define('PAGE_TITLE', 'Pregled Svih Evidencija');
         }
@@ -81,9 +84,7 @@ class EvidencijaController {
         $offset = ($current_page - 1) * $items_per_page;
 
         $searchParams = [
-            'ident' => $_GET['search_ident'] ?? null,
-            'kataloska' => $_GET['search_kataloska'] ?? null,
-            'serijski' => $_GET['search_serijski'] ?? null,
+            'query' => $_GET['search'] ?? null,
             'kontrolor' => $_GET['search_kontrolor'] ?? null,
         ];
 
@@ -99,9 +100,7 @@ class EvidencijaController {
         ];
     }
     
-    /**
-     * Prikazuje formu za kreiranje nove evidencije.
-     */
+    // ... ostatak fajla (create, show, edit, itd.) ostaje nepromenjen ...
     public function create() {
         $this->checkAuth();
         
@@ -123,9 +122,6 @@ class EvidencijaController {
         return ['formData' => $formData, 'plan' => $plan];
     }
 
-    /**
-     * Prikazuje detalje jedne evidencije.
-     */
     public function show($id) {
         if (session_status() == PHP_SESSION_NONE) { session_start(); }
         if (!isset($_SESSION['logged_in'])) {
@@ -146,23 +142,18 @@ class EvidencijaController {
             define('PAGE_TITLE', 'Pregled Zapisa #' . $evidencija['id']);
         }
 
-        // Dohvatanje istorije zapisa za isti proizvod
         $istorija = $this->evidencijaModel->getHistoryForProduct(
             $evidencija['product_ident_sken'],
             $evidencija['product_serijski_broj_sken'],
             $id
         );
 
-        // Prosleđivanje svih podataka u view
         return [
             'evidencija' => $evidencija,
             'istorija' => $istorija
         ];
     }
 
-    /**
-     * Prikazuje formu za izmenu postojeće evidencije.
-     */
     public function edit($id) {
         $this->checkAuth();
         $evidencija = $this->evidencijaModel->getByIdWithDetails($id);
@@ -179,9 +170,6 @@ class EvidencijaController {
         return ['evidencija' => $evidencija];
     }
 
-    /**
-     * Čuva novu evidenciju.
-     */
     public function store() {
         $this->checkAuth();
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') { exit('Neovlašćen pristup.'); }
@@ -225,9 +213,6 @@ class EvidencijaController {
         exit;
     }
     
-    /**
-     * Ažurira postojeću evidenciju.
-     */
     public function update($id) {
         $this->checkAuth();
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') { exit('Neovlašćen pristup.'); }
@@ -257,9 +242,6 @@ class EvidencijaController {
         exit;
     }
 
-    /**
-     * Briše evidenciju o kontroli.
-     */
     public function delete($id) {
         $this->checkAuth();
         $redirectPage = ($_SESSION['user_uloga'] === 'administrator') ? 'admin_evidencije' : 'kontrolor_moji_zapisi';
@@ -282,9 +264,6 @@ class EvidencijaController {
         exit;
     }
 
-    /**
-     * AJAX endpoint za proveru da li evidencija već postoji.
-     */
     public function checkExistingRecord() {
         if (session_status() == PHP_SESSION_NONE) { session_start(); }
         if (!isset($_SESSION['logged_in'])) {

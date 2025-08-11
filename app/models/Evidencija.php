@@ -230,17 +230,23 @@ class Evidencija {
 
     public function getTotalCountForUser($kontrolorId, $searchParams = []) {
         $sql = "SELECT COUNT(id) FROM evidencije_kontrole WHERE kontrolor_id = :kontrolor_id";
-        $whereClauses = [];
-        $params = [':kontrolor_id' => $kontrolorId];
-        if (!empty($searchParams['ident'])) { $whereClauses[] = "product_ident_sken LIKE :ident"; $params[':ident'] = '%' . $searchParams['ident'] . '%'; }
-        if (!empty($searchParams['kataloska'])) { $whereClauses[] = "product_kataloska_oznaka_sken LIKE :kataloska"; $params[':kataloska'] = '%' . $searchParams['kataloska'] . '%'; }
-        if (!empty($searchParams['serijski'])) { $whereClauses[] = "product_serijski_broj_sken LIKE :serijski"; $params[':serijski'] = '%' . $searchParams['serijski'] . '%'; }
-        if (!empty($whereClauses)) {
-            $sql .= " AND " . implode(" AND ", $whereClauses);
+        
+        if (!empty($searchParams['query'])) {
+            $sql .= " AND (product_ident_sken LIKE :query_ident OR product_kataloska_oznaka_sken LIKE :query_kat OR product_serijski_broj_sken LIKE :query_ser)";
         }
+
         try {
             $stmt = $this->db->prepare($sql);
-            $stmt->execute($params);
+            $stmt->bindParam(':kontrolor_id', $kontrolorId, PDO::PARAM_INT);
+            
+            if (!empty($searchParams['query'])) {
+                $queryWithWildcards = '%' . $searchParams['query'] . '%';
+                $stmt->bindParam(':query_ident', $queryWithWildcards, PDO::PARAM_STR);
+                $stmt->bindParam(':query_kat', $queryWithWildcards, PDO::PARAM_STR);
+                $stmt->bindParam(':query_ser', $queryWithWildcards, PDO::PARAM_STR);
+            }
+            
+            $stmt->execute();
             return (int) $stmt->fetchColumn();
         } catch (PDOException $e) {
             error_log("Greška u Evidencija::getTotalCountForUser: " . $e->getMessage());
@@ -250,21 +256,28 @@ class Evidencija {
 
     public function getAllForUser($kontrolorId, $searchParams = [], $limit = 15, $offset = 0) {
         $sql = "SELECT * FROM evidencije_kontrole WHERE kontrolor_id = :kontrolor_id";
-        $whereClauses = [];
-        $params = [':kontrolor_id' => $kontrolorId];
-        if (!empty($searchParams['ident'])) { $whereClauses[] = "product_ident_sken LIKE :ident"; $params[':ident'] = '%' . $search_params['ident'] . '%'; }
-        if (!empty($searchParams['kataloska'])) { $whereClauses[] = "product_kataloska_oznaka_sken LIKE :kataloska"; $params[':kataloska'] = '%' . $search_params['kataloska'] . '%'; }
-        if (!empty($searchParams['serijski'])) { $whereClauses[] = "product_serijski_broj_sken LIKE :serijski"; $params[':serijski'] = '%' . $search_params['serijski'] . '%'; }
-        if (!empty($whereClauses)) {
-            $sql .= " AND " . implode(" AND ", $whereClauses);
+
+        if (!empty($searchParams['query'])) {
+            $sql .= " AND (product_ident_sken LIKE :query_ident OR product_kataloska_oznaka_sken LIKE :query_kat OR product_serijski_broj_sken LIKE :query_ser)";
         }
+
         $sql .= " ORDER BY datum_vreme_ispitivanja DESC LIMIT :limit OFFSET :offset";
+        
         try {
             $stmt = $this->db->prepare($sql);
-            foreach ($params as $key => &$val) { $stmt->bindParam($key, $val, PDO::PARAM_STR); }
+
             $stmt->bindParam(':kontrolor_id', $kontrolorId, PDO::PARAM_INT);
+            
+            if (!empty($searchParams['query'])) {
+                $queryWithWildcards = '%' . $searchParams['query'] . '%';
+                $stmt->bindParam(':query_ident', $queryWithWildcards, PDO::PARAM_STR);
+                $stmt->bindParam(':query_kat', $queryWithWildcards, PDO::PARAM_STR);
+                $stmt->bindParam(':query_ser', $queryWithWildcards, PDO::PARAM_STR);
+            }
+            
             $stmt->bindParam(':limit', $limit, PDO::PARAM_INT);
             $stmt->bindParam(':offset', $offset, PDO::PARAM_INT);
+            
             $stmt->execute();
             return $stmt->fetchAll(PDO::FETCH_ASSOC);
         } catch (PDOException $e) {
@@ -273,48 +286,81 @@ class Evidencija {
         }
     }
 
+    /**
+     * ===== METODA ZA ADMINA (ISPRAVLJENA) =====
+     */
     public function getTotalRecordCount($searchParams = []) {
         $sql = "SELECT COUNT(e.id) FROM evidencije_kontrole e LEFT JOIN korisnici u ON e.kontrolor_id = u.id";
         $whereClauses = [];
         $params = [];
-        if (!empty($searchParams['ident'])) { $whereClauses[] = "e.product_ident_sken LIKE :ident"; $params[':ident'] = '%' . $searchParams['ident'] . '%'; }
-        if (!empty($searchParams['kataloska'])) { $whereClauses[] = "e.product_kataloska_oznaka_sken LIKE :kataloska"; $params[':kataloska'] = '%' . $searchParams['kataloska'] . '%'; }
-        if (!empty($searchParams['serijski'])) { $whereClauses[] = "e.product_serijski_broj_sken LIKE :serijski"; $params[':serijski'] = '%' . $searchParams['serijski'] . '%'; }
-        if (!empty($searchParams['kontrolor'])) { $whereClauses[] = "CONCAT(u.ime, ' ', u.prezime) LIKE :kontrolor"; $params[':kontrolor'] = '%' . $searchParams['kontrolor'] . '%'; }
+
+        if (!empty($searchParams['query'])) {
+            $whereClauses[] = "(e.product_ident_sken LIKE :query_ident OR e.product_kataloska_oznaka_sken LIKE :query_kat OR e.product_serijski_broj_sken LIKE :query_ser)";
+            $queryWithWildcards = '%' . $searchParams['query'] . '%';
+            $params[':query_ident'] = $queryWithWildcards;
+            $params[':query_kat'] = $queryWithWildcards;
+            $params[':query_ser'] = $queryWithWildcards;
+        }
+
+        if (!empty($searchParams['kontrolor'])) {
+            $whereClauses[] = "CONCAT(u.ime, ' ', u.prezime) LIKE :kontrolor";
+            $params[':kontrolor'] = '%' . $searchParams['kontrolor'] . '%';
+        }
+
         if (!empty($whereClauses)) {
             $sql .= " WHERE " . implode(" AND ", $whereClauses);
         }
+
         try {
             $stmt = $this->db->prepare($sql);
             $stmt->execute($params);
             return (int) $stmt->fetchColumn();
         } catch (PDOException $e) {
-            error_log("Greška u Evidencija::getTotalRecordCount: " . $e->getMessage());
+            error_log("Greška u Evidencija::getTotalRecordCount (admin): " . $e->getMessage());
             return 0;
         }
     }
 
+    /**
+     * ===== METODA ZA ADMINA (ISPRAVLJENA) =====
+     */
     public function getAllRecords($searchParams = [], $limit = 15, $offset = 0) {
         $sql = "SELECT e.*, CONCAT(u.ime, ' ', u.prezime) as kontrolor_puno_ime FROM evidencije_kontrole e LEFT JOIN korisnici u ON e.kontrolor_id = u.id";
         $whereClauses = [];
         $params = [];
-        if (!empty($searchParams['ident'])) { $whereClauses[] = "e.product_ident_sken LIKE :ident"; $params[':ident'] = '%' . $searchParams['ident'] . '%'; }
-        if (!empty($searchParams['kataloska'])) { $whereClauses[] = "e.product_kataloska_oznaka_sken LIKE :kataloska"; $params[':kataloska'] = '%' . $searchParams['kataloska'] . '%'; }
-        if (!empty($searchParams['serijski'])) { $whereClauses[] = "e.product_serijski_broj_sken LIKE :serijski"; $params[':serijski'] = '%' . $searchParams['serijski'] . '%'; }
-        if (!empty($searchParams['kontrolor'])) { $whereClauses[] = "CONCAT(u.ime, ' ', u.prezime) LIKE :kontrolor"; $params[':kontrolor'] = '%' . $searchParams['kontrolor'] . '%'; }
+
+        if (!empty($searchParams['query'])) {
+            $whereClauses[] = "(e.product_ident_sken LIKE :query_ident OR e.product_kataloska_oznaka_sken LIKE :query_kat OR e.product_serijski_broj_sken LIKE :query_ser)";
+            $queryWithWildcards = '%' . $searchParams['query'] . '%';
+            $params[':query_ident'] = $queryWithWildcards;
+            $params[':query_kat'] = $queryWithWildcards;
+            $params[':query_ser'] = $queryWithWildcards;
+        }
+
+        if (!empty($searchParams['kontrolor'])) {
+            $whereClauses[] = "CONCAT(u.ime, ' ', u.prezime) LIKE :kontrolor";
+            $params[':kontrolor'] = '%' . $searchParams['kontrolor'] . '%';
+        }
+
         if (!empty($whereClauses)) {
             $sql .= " WHERE " . implode(" AND ", $whereClauses);
         }
+
         $sql .= " ORDER BY e.datum_vreme_ispitivanja DESC LIMIT :limit OFFSET :offset";
+        
         try {
             $stmt = $this->db->prepare($sql);
-            foreach ($params as $key => &$val) { $stmt->bindParam($key, $val, PDO::PARAM_STR); }
-            $stmt->bindParam(':limit', $limit, PDO::PARAM_INT);
-            $stmt->bindParam(':offset', $offset, PDO::PARAM_INT);
+            
+            foreach ($params as $key => $val) {
+                $stmt->bindValue($key, $val);
+            }
+            $stmt->bindValue(':limit', (int)$limit, PDO::PARAM_INT);
+            $stmt->bindValue(':offset', (int)$offset, PDO::PARAM_INT);
+            
             $stmt->execute();
             return $stmt->fetchAll(PDO::FETCH_ASSOC);
         } catch (PDOException $e) {
-            error_log("Greška u Evidencija::getAllRecords: " . $e->getMessage());
+            error_log("Greška u Evidencija::getAllRecords (admin): " . $e->getMessage());
             return [];
         }
     }
@@ -399,14 +445,6 @@ class Evidencija {
         }
     }
 
-    /**
-     * Dohvata istoriju svih evidencija za proizvod na osnovu identa i serijskog broja.
-     *
-     * @param string $ident Ident proizvoda.
-     * @param string $serijskiBroj Serijski broj proizvoda.
-     * @param int $excludeId ID evidencije koju treba isključiti iz rezultata (ona koja se trenutno gleda).
-     * @return array Lista istorijskih zapisa.
-     */
     public function getHistoryForProduct($ident, $serijskiBroj, $excludeId) {
         $sql = "SELECT e.id, e.datum_vreme_ispitivanja, e.vrsta_kontrole, CONCAT(u.ime, ' ', u.prezime) as kontrolor_puno_ime
                 FROM evidencije_kontrole e
