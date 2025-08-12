@@ -53,7 +53,7 @@ function formatirajVrstuKontrole($vrsta) {
     <div class="row">
         <div class="col-lg-6 mb-4">
             <div class="card h-100">
-                <div class="card-header">Osnovni Podaci</div>
+                <div class="card-header"><i class="fa-solid fa-file-invoice me-2"></i>Osnovni Podaci</div>
                 <div class="card-body">
                     <dl class="row mb-0">
                         <dt class="col-sm-4">ID Zapisa:</dt><dd class="col-sm-8">#<?php echo $evidencija['id']; ?></dd>
@@ -68,7 +68,7 @@ function formatirajVrstuKontrole($vrsta) {
         
         <div class="col-lg-6 mb-4">
             <div class="card h-100">
-                <div class="card-header">Podaci o Proizvodu</div>
+                <div class="card-header"><i class="fa-solid fa-box-archive me-2"></i>Podaci o Proizvodu</div>
                 <div class="card-body">
                     <dl class="row mb-0">
                         <dt class="col-sm-4">Ident:</dt><dd class="col-sm-8"><?php echo htmlspecialchars($evidencija['product_ident_sken']); ?></dd>
@@ -84,8 +84,8 @@ function formatirajVrstuKontrole($vrsta) {
             </div>
         </div>
     </div>
-    <div class="card mt-4">
-        <div class="card-header">Rezultati Ček-Liste</div>
+    <div class="card">
+        <div class="card-header"><i class="fa-solid fa-tasks me-2"></i>Rezultati Ček-Liste</div>
         <div class="card-body">
             <?php if (!empty($evidencija['rezultati'])): ?>
                 <?php
@@ -94,13 +94,14 @@ function formatirajVrstuKontrole($vrsta) {
                     if ($trenutnaGrupa !== $rezultat['naziv_grupe']) {
                         if ($trenutnaGrupa !== null) { echo '</div>'; } 
                         $trenutnaGrupa = $rezultat['naziv_grupe'];
-                        echo '<h5 class="mt-3"><strong>Grupa: ' . htmlspecialchars($trenutnaGrupa) . '</strong></h5><div class="list-group list-group-flush">';
+                        // ===== IZMENJENA LINIJA (UKLONJENA REČ "GRUPA" I PLAVA BOJA) =====
+                        echo '<h5 class="mt-3"><i class="fa-solid fa-layer-group me-2"></i><strong>' . htmlspecialchars($trenutnaGrupa) . '</strong></h5><div class="list-group list-group-flush">';
                     }
                 ?>
                     <div class="list-group-item">
                         <div class="d-flex justify-content-between align-items-center flex-wrap">
                             <div class="me-auto">
-                                <span><?php echo htmlspecialchars($rezultat['opis_karakteristike_snapshot'] ?? 'Karakteristika ' . $rezultat['karakteristika_plana_id']); ?></span>
+                                <span><strong><?php echo htmlspecialchars($rezultat['redni_broj_karakteristike'] ?? ''); ?>.</strong> <?php echo htmlspecialchars($rezultat['opis_karakteristike_snapshot'] ?? 'Karakteristika ' . $rezultat['karakteristika_plana_id']); ?></span>
                                 <?php if (!empty($rezultat['kontrolni_alat_nacin'])): ?>
                                     <span class="d-block text-muted small mt-1">
                                         <i class="fa-solid fa-wrench me-1"></i><strong>Alat/Način:</strong> <?php echo htmlspecialchars($rezultat['kontrolni_alat_nacin']); ?>
@@ -119,8 +120,8 @@ function formatirajVrstuKontrole($vrsta) {
                         </div>
                         
                         <?php if (!empty($rezultat['napomena'])): ?>
-                            <div class="mt-2 ps-3 border-start border-3 border-secondary">
-                                <p class="mb-0 text-danger fst-italic">
+                            <div class="mt-2 ps-3 border-start border-3" style="border-color: #6c757d !important;">
+                                <p class="mb-0 text-muted fst-italic">
                                     <i class="fa-solid fa-comment-dots me-1"></i>
                                     <?php echo htmlspecialchars($rezultat['napomena']); ?>
                                 </p>
@@ -139,7 +140,7 @@ function formatirajVrstuKontrole($vrsta) {
     
     <?php if (!empty($evidencija['fotografije_masine'])): ?>
     <div class="card mt-4">
-        <div class="card-header">Fotografije Mašine</div>
+        <div class="card-header"><i class="fa-solid fa-images me-2"></i>Fotografije Mašine</div>
         <div class="card-body">
             <div class="row">
             <?php foreach($evidencija['fotografije_masine'] as $foto): ?>
@@ -162,7 +163,7 @@ function formatirajVrstuKontrole($vrsta) {
 
     <?php if (!empty($evidencija['ostale_napomene'])): ?>
     <div class="card mt-4">
-        <div class="card-header">Ostale Napomene</div>
+        <div class="card-header"><i class="fa-solid fa-pen-alt me-2"></i>Ostale Napomene</div>
         <div class="card-body">
             <p><?php echo nl2br(htmlspecialchars($evidencija['ostale_napomene'])); ?></p>
         </div>
