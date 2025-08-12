@@ -28,17 +28,7 @@ $rezultati = $isEdit ? $evidencija['rezultati'] : ($formDataSource['rezultati'] 
 
 
 <div class="container-fluid">
-    <nav aria-label="breadcrumb">
-        <ol class="breadcrumb">
-            <li class="breadcrumb-item"><a href="<?php echo rtrim(APP_URL, '/'); ?>/public/index.php?page=kontrolor_dashboard">Kontrolna tabla</a></li>
-            <?php if (!$isEdit): ?>
-            <li class="breadcrumb-item"><a href="<?php echo rtrim(APP_URL, '/'); ?>/public/index.php?page=kontrolor_biraj_vrstu">Odabir vrste</a></li>
-            <?php else: ?>
-            <li class="breadcrumb-item"><a href="<?php echo rtrim(APP_URL, '/'); ?>/public/index.php?page=kontrolor_moji_zapisi">Moji zapisi</a></li>
-            <?php endif; ?>
-            <li class="breadcrumb-item active" aria-current="page"><?php echo $isEdit ? 'Izmena zapisa #' . $evidencija['id'] : 'Novi zapis'; ?></li>
-        </ol>
-    </nav>
+   
     <h1 id="page-main-title"><?php echo htmlspecialchars($pageTitle); ?></h1>
 
     <?php

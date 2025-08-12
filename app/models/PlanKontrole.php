@@ -6,45 +6,67 @@ class PlanKontrole {
         $this->db = $db;
     }
 
-    public function getTotalCount() {
+    /**
+     * ===== KONAČNA ISPRAVKA =====
+     * Broji planove uzimajući u obzir filter pretrage sa jedinstvenim parametrima.
+     */
+    public function getTotalCount($searchParams = []) {
+        $sql = "SELECT COUNT(pk.id) FROM planovi_kontrole pk WHERE pk.status = 'aktivan'";
+        $params = [];
+
+        if (!empty($searchParams['query'])) {
+            $sql .= " AND (pk.broj_plana_kontrole LIKE :query_broj OR pk.ident_proizvoda LIKE :query_ident OR pk.kataloska_oznaka LIKE :query_kat OR pk.naziv_proizvoda LIKE :query_naziv)";
+            $queryWithWildcards = '%' . $searchParams['query'] . '%';
+            $params[':query_broj'] = $queryWithWildcards;
+            $params[':query_ident'] = $queryWithWildcards;
+            $params[':query_kat'] = $queryWithWildcards;
+            $params[':query_naziv'] = $queryWithWildcards;
+        }
+
         try {
-            return (int) $this->db->query("SELECT COUNT(id) FROM planovi_kontrole WHERE status = 'aktivan'")->fetchColumn();
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute($params);
+            return (int) $stmt->fetchColumn();
         } catch (PDOException $e) {
             error_log("Greška u PlanKontrole::getTotalCount: " . $e->getMessage());
             return 0;
         }
     }
 
+    /**
+     * ===== KONAČNA ISPRAVKA =====
+     * Dohvata planove sa univerzalnom pretragom i jedinstvenim parametrima.
+     */
     public function getAll($searchParams = [], $limit = 10, $offset = 0) {
         $sql = "SELECT 
-                    pk.id, 
-                    pk.broj_plana_kontrole, 
-                    pk.verzija_broj, 
-                    pk.ident_proizvoda, 
-                    pk.kataloska_oznaka, 
-                    pk.naziv_proizvoda, 
-                    pk.kreiran_datuma,
-                    pk.azuriran_datuma,
-                    CONCAT(k.ime, ' ', k.prezime) as kreator_puno_ime 
+                    pk.id, pk.broj_plana_kontrole, pk.verzija_broj, pk.ident_proizvoda, 
+                    pk.kataloska_oznaka, pk.naziv_proizvoda, pk.kreiran_datuma,
+                    pk.azuriran_datuma, CONCAT(k.ime, ' ', k.prezime) as kreator_puno_ime 
                 FROM planovi_kontrole pk 
                 LEFT JOIN korisnici k ON pk.kreirao_korisnik_id = k.id 
                 WHERE pk.status = 'aktivan'";
 
-        $whereClauses = [];
         $params = [];
-        if (!empty($searchParams['broj_plana'])) { $whereClauses[] = "pk.broj_plana_kontrole LIKE :broj_plana"; $params[':broj_plana'] = '%' . $searchParams['broj_plana'] . '%'; }
-        if (!empty($searchParams['ident'])) { $whereClauses[] = "pk.ident_proizvoda LIKE :ident"; $params[':ident'] = '%' . $searchParams['ident'] . '%'; }
-        if (!empty($searchParams['kataloska'])) { $whereClauses[] = "pk.kataloska_oznaka LIKE :kataloska"; $params[':kataloska'] = '%' . $searchParams['kataloska'] . '%'; }
-        if (!empty($searchParams['naziv'])) { $whereClauses[] = "pk.naziv_proizvoda LIKE :naziv"; $params[':naziv'] = '%' . $searchParams['naziv'] . '%'; }
-        if (!empty($whereClauses)) { $sql .= " AND " . implode(" AND ", $whereClauses); }
+        if (!empty($searchParams['query'])) {
+            $sql .= " AND (pk.broj_plana_kontrole LIKE :query_broj OR pk.ident_proizvoda LIKE :query_ident OR pk.kataloska_oznaka LIKE :query_kat OR pk.naziv_proizvoda LIKE :query_naziv)";
+            $queryWithWildcards = '%' . $searchParams['query'] . '%';
+            $params[':query_broj'] = $queryWithWildcards;
+            $params[':query_ident'] = $queryWithWildcards;
+            $params[':query_kat'] = $queryWithWildcards;
+            $params[':query_naziv'] = $queryWithWildcards;
+        }
         
         $sql .= " ORDER BY pk.id DESC LIMIT :limit OFFSET :offset";
         
         try {
             $stmt = $this->db->prepare($sql);
-            foreach ($params as $key => &$val) { $stmt->bindParam($key, $val, PDO::PARAM_STR); }
-            $stmt->bindParam(':limit', $limit, PDO::PARAM_INT);
-            $stmt->bindParam(':offset', $offset, PDO::PARAM_INT);
+            
+            foreach ($params as $key => $val) {
+                $stmt->bindValue($key, $val);
+            }
+            $stmt->bindValue(':limit', (int)$limit, PDO::PARAM_INT);
+            $stmt->bindValue(':offset', (int)$offset, PDO::PARAM_INT);
+
             $stmt->execute();
             return $stmt->fetchAll(PDO::FETCH_ASSOC);
         } catch (PDOException $e) {
@@ -61,24 +83,22 @@ class PlanKontrole {
     }
 
     public function getPlanByIdentWithDetails($ident) {
-    // Poboljšan upit: pronalazi aktivnu verziju sa najvećim brojem verzije.
-    $sql = "SELECT * FROM planovi_kontrole 
-            WHERE ident_proizvoda = :ident AND status = 'aktivan' 
-            ORDER BY verzija_broj DESC 
-            LIMIT 1";
-            
-    $stmtPlan = $this->db->prepare($sql);
-    $stmtPlan->bindParam(':ident', $ident, PDO::PARAM_STR);
-    $stmtPlan->execute();
-    $plan = $stmtPlan->fetch(PDO::FETCH_ASSOC);
-    
-    if (!$plan) { 
-        return false; 
+        $sql = "SELECT * FROM planovi_kontrole 
+                WHERE ident_proizvoda = :ident AND status = 'aktivan' 
+                ORDER BY verzija_broj DESC 
+                LIMIT 1";
+                
+        $stmtPlan = $this->db->prepare($sql);
+        $stmtPlan->bindParam(':ident', $ident, PDO::PARAM_STR);
+        $stmtPlan->execute();
+        $plan = $stmtPlan->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$plan) { 
+            return false; 
+        }
+        
+        return $this->getPlanByIdWithDetails($plan['id']);
     }
-    
-    // Nakon što smo pronašli ispravan ID, pozivamo postojeću metodu da učita sve detalje
-    return $this->getPlanByIdWithDetails($plan['id']);
-}
 
     public function getPlanByIdWithDetails($id) {
         $plan = $this->getPlanById($id);
@@ -152,16 +172,12 @@ class PlanKontrole {
 
                 foreach ($karakteristikeData as $k_index => $karakteristika) {
                     
-                    // Inicijalizujemo putanju sa postojećom vrednošću
                     $putanjaFajla = $karakteristika['postojeca_fotografija'] ?? null;
 
-                    // Proveravamo da li je checkbox 'ukloni_fotografiju' štikliran
                     if (!empty($karakteristika['ukloni_fotografiju']) && $putanjaFajla) {
-                        // Samo se raskida veza u bazi, fajl se NE BRIŠE sa servera.
                         $putanjaFajla = null;
                     }
 
-                    // Logika za upload nove slike (ostaje ista, ali se izvršava nakon brisanja veze)
                     if (isset($filesData['name'][$g_index]['karakteristike'][$k_index]['fotografija']) && $filesData['error'][$g_index]['karakteristike'][$k_index]['fotografija'] == 0) {
                         
                         $safeIdentDir = preg_replace('/[^a-zA-Z0-9-_\.]/', '_', $planData['ident_proizvoda']);
@@ -334,33 +350,27 @@ class PlanKontrole {
     }
 
     public function getLatestPlans($limit = 5) {
-    // IZMENJENO: U SELECT listu su dodati pk.verzija_broj i pk.azuriran_datuma
-    $sql = "SELECT 
-                pk.id, 
-                pk.broj_plana_kontrole, 
-                pk.verzija_broj,
-                pk.naziv_proizvoda, 
-                pk.kataloska_oznaka, 
-                pk.kreiran_datuma, 
-                pk.azuriran_datuma,
-                CONCAT(k.ime, ' ', k.prezime) as kreator_puno_ime 
-            FROM planovi_kontrole pk 
-            LEFT JOIN korisnici k ON pk.kreirao_korisnik_id = k.id 
-            WHERE pk.status = 'aktivan' 
-            ORDER BY pk.id DESC 
-            LIMIT :limit";
-    try {
-        $stmt = $this->db->prepare($sql);
-        $stmt->bindParam(':limit', $limit, PDO::PARAM_INT);
-        $stmt->execute();
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
-    } catch (PDOException $e) {
-        error_log("Greška u PlanKontrole::getLatestPlans: " . $e->getMessage());
-        return [];
+        $sql = "SELECT 
+                    pk.id, pk.broj_plana_kontrole, pk.verzija_broj, pk.naziv_proizvoda, 
+                    pk.kataloska_oznaka, pk.kreiran_datuma, pk.azuriran_datuma,
+                    CONCAT(k.ime, ' ', k.prezime) as kreator_puno_ime 
+                FROM planovi_kontrole pk 
+                LEFT JOIN korisnici k ON pk.kreirao_korisnik_id = k.id 
+                WHERE pk.status = 'aktivan' 
+                ORDER BY pk.id DESC 
+                LIMIT :limit";
+        try {
+            $stmt = $this->db->prepare($sql);
+            $stmt->bindParam(':limit', $limit, PDO::PARAM_INT);
+            $stmt->execute();
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            error_log("Greška u PlanKontrole::getLatestPlans: " . $e->getMessage());
+            return [];
+        }
     }
-    }
+
      public function identExists($ident, $excludeId = null) {
-        // Proverava da li već postoji AKTIVAN plan sa datim identom
         $sql = "SELECT id FROM planovi_kontrole WHERE ident_proizvoda = :ident AND status = 'aktivan'";
         if ($excludeId) {
             $sql .= " AND id != :id";

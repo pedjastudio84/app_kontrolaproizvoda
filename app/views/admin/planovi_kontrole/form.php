@@ -105,13 +105,6 @@ $grupe = $formData['grupe'] ?? [];
 </template>
 
 <div class="container-fluid">
-    <nav aria-label="breadcrumb">
-        <ol class="breadcrumb">
-            <li class="breadcrumb-item"><a href="<?php echo rtrim(APP_URL, '/'); ?>/public/index.php?page=admin_dashboard">Admin Dashboard</a></li>
-            <li class="breadcrumb-item"><a href="<?php echo rtrim(APP_URL, '/'); ?>/public/index.php?page=admin_plans">Upravljanje Planovima Kontrole</a></li>
-            <li class="breadcrumb-item active" aria-current="page"><?php echo $isEdit ? 'Izmena' : 'Dodavanje/Kopiranje'; ?></li>
-        </ol>
-    </nav>
     
     <h1><?php echo $pageTitle; ?></h1>
 

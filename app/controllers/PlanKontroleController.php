@@ -20,69 +20,79 @@ class PlanKontroleController {
     }
 
     private function validatePlanData($planData, $grupeData, $isUpdate = false, $id = null) {
-    $errors = [];
-    
-    // Provera za Broj Plana Kontrole (ostaje ista)
-    if (empty($planData['broj_plana_kontrole'])) { 
-        $errors[] = 'Broj plana kontrole je obavezan.'; 
-    }
-    if ($this->planKontroleModel->planNumberExists($planData['broj_plana_kontrole'], $id)) { 
-        $errors[] = 'Plan sa ovim brojem već postoji.'; 
-    }
-    
-    // Provera za Ident Proizvoda
-    if (empty($planData['ident_proizvoda'])) { 
-        $errors[] = 'Ident proizvoda je obavezan.'; 
-    }
-    
-    // --- NOVA LINIJA KODA ---
-    // Ako kreiramo NOVI plan (ne ažuriramo postojeći), proveravamo da li ident već postoji
-    if (!$isUpdate && $this->planKontroleModel->identExists($planData['ident_proizvoda'])) {
-        $errors[] = 'Plan kontrole za uneti Ident proizvoda već postoji.';
-    }
-    // --- KRAJ NOVE LINIJE KODA ---
-    
-    if (empty($planData['naziv_proizvoda'])) { 
-        $errors[] = 'Naziv proizvoda je obavezan.'; 
-    }
-    
-    if (empty($grupeData)) {
-        $errors[] = 'Plan kontrole mora imati najmanje jednu grupu karakteristika.';
-    } else {
-        foreach ($grupeData as $g_index => $grupa) {
-            if (empty($grupa['naziv_grupe'])) { 
-                $errors[] = 'Naziv grupe ' . ((int)$g_index + 1) . ' je obavezan.'; 
-            }
-            if (empty($grupa['karakteristike'])) {
-                $errors[] = 'Grupa "' . htmlspecialchars($grupa['naziv_grupe']) . '" mora imati najmanje jednu karakteristiku.';
-            } else {
-                foreach ($grupa['karakteristike'] as $k_index => $karakteristika) {
-                    if (empty($karakteristika['opis_karakteristike'])) { 
-                        $errors[] = 'Opis karakteristike br. ' . ((int)$k_index + 1) . ' u grupi "' . htmlspecialchars($grupa['naziv_grupe']) . '" je obavezan.'; 
+        $errors = [];
+        
+        if (empty($planData['broj_plana_kontrole'])) { 
+            $errors[] = 'Broj plana kontrole je obavezan.'; 
+        }
+        if ($this->planKontroleModel->planNumberExists($planData['broj_plana_kontrole'], $id)) { 
+            $errors[] = 'Plan sa ovim brojem već postoji.'; 
+        }
+        
+        if (empty($planData['ident_proizvoda'])) { 
+            $errors[] = 'Ident proizvoda je obavezan.'; 
+        }
+        
+        if (!$isUpdate && $this->planKontroleModel->identExists($planData['ident_proizvoda'])) {
+            $errors[] = 'Plan kontrole za uneti Ident proizvoda već postoji.';
+        }
+        
+        if (empty($planData['naziv_proizvoda'])) { 
+            $errors[] = 'Naziv proizvoda je obavezan.'; 
+        }
+        
+        if (empty($grupeData)) {
+            $errors[] = 'Plan kontrole mora imati najmanje jednu grupu karakteristika.';
+        } else {
+            foreach ($grupeData as $g_index => $grupa) {
+                if (empty($grupa['naziv_grupe'])) { 
+                    $errors[] = 'Naziv grupe ' . ((int)$g_index + 1) . ' je obavezan.'; 
+                }
+                if (empty($grupa['karakteristike'])) {
+                    $errors[] = 'Grupa "' . htmlspecialchars($grupa['naziv_grupe']) . '" mora imati najmanje jednu karakteristiku.';
+                } else {
+                    foreach ($grupa['karakteristike'] as $k_index => $karakteristika) {
+                        if (empty($karakteristika['opis_karakteristike'])) { 
+                            $errors[] = 'Opis karakteristike br. ' . ((int)$k_index + 1) . ' u grupi "' . htmlspecialchars($grupa['naziv_grupe']) . '" je obavezan.'; 
+                        }
                     }
                 }
             }
         }
+        
+        return $errors;
     }
-    
-    return $errors;
-}
-    
 
+    /**
+     * ===== AŽURIRANA METODA =====
+     */
     public function index() {
         if (session_status() == PHP_SESSION_NONE) { session_start(); }
         if (!isset($_SESSION['logged_in'])) {
              header('Location: ' . rtrim(APP_URL, '/') . '/public/index.php?page=login'); exit;
         }
-        $searchParams = ['broj_plana' => $_GET['search_broj_plana'] ?? null, 'ident' => $_GET['search_ident'] ?? null, 'kataloska' => $_GET['search_kataloska'] ?? null, 'naziv' => $_GET['search_naziv'] ?? null];
+
+        // Prikupljamo samo jedan, univerzalni parametar za pretragu
+        $searchParams = ['query' => $_GET['search'] ?? null];
+        
         $items_per_page = 10;
         $current_page = isset($_GET['p']) ? (int)$_GET['p'] : 1;
         if ($current_page < 1) { $current_page = 1; }
         $offset = ($current_page - 1) * $items_per_page;
+        
         $planovi = $this->planKontroleModel->getAll($searchParams, $items_per_page, $offset);
-        $total_items = $this->planKontroleModel->getTotalCount();
+        
+        // Prosleđujemo parametre pretrage i u metodu za brojanje
+        $total_items = $this->planKontroleModel->getTotalCount($searchParams);
+        
         $total_pages = ceil($total_items / $items_per_page);
-        return ['planovi' => $planovi, 'total_pages' => $total_pages, 'current_page' => $current_page, 'search_params' => $searchParams];
+
+        return [
+            'planovi' => $planovi, 
+            'total_pages' => $total_pages, 
+            'current_page' => $current_page, 
+            'search_params' => $searchParams
+        ];
     }
 
     public function create() {
@@ -153,60 +163,59 @@ class PlanKontroleController {
     
     public function update($id) {
         $this->checkAdmin();
-    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-        exit('Neovlašćen pristup.');
-    }
-    
-    $planData = [
-        'broj_plana_kontrole' => trim($_POST['broj_plana_kontrole'] ?? ''),
-        'ident_proizvoda' => trim($_POST['ident_proizvoda'] ?? ''),
-        'kataloska_oznaka' => trim($_POST['kataloska_oznaka'] ?? NULL),
-        'naziv_proizvoda' => trim($_POST['naziv_proizvoda'] ?? ''),
-        'broj_operacije' => trim($_POST['broj_operacije'] ?? NULL),
-        'verzija_napomena' => trim($_POST['verzija_napomena_edit'] ?? NULL)
-    ];
-    $grupeData = $_POST['grupe'] ?? [];
-    if (is_array($grupeData)) {
-        $grupeData = array_filter($grupeData, 'is_array');
-    }
-    
-    // Validacija se sada radi uvek na isti način, pre provere akcije
-    $errors = $this->validatePlanData($planData, $grupeData, true, $id);
-    if (!empty($errors)) {
-        $_SESSION['form_errors'] = $errors;
-        $_SESSION['form_data'] = $_POST;
-        header('Location: ' . rtrim(APP_URL, '/') . '/public/index.php?page=admin_plan_edit&id=' . $id);
-        exit;
-    }
-
-    $action = $_POST['form_action'] ?? 'minor_edit';
-
-    if ($action === 'new_version') {
-        $napomena = trim($_POST['verzija_napomena'] ?? '');
-        if (empty($napomena)) {
-            $_SESSION['form_errors'] = ['Napomena o izmeni je obavezna prilikom kreiranja nove verzije.'];
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            exit('Neovlašćen pristup.');
+        }
+        
+        $planData = [
+            'broj_plana_kontrole' => trim($_POST['broj_plana_kontrole'] ?? ''),
+            'ident_proizvoda' => trim($_POST['ident_proizvoda'] ?? ''),
+            'kataloska_oznaka' => trim($_POST['kataloska_oznaka'] ?? NULL),
+            'naziv_proizvoda' => trim($_POST['naziv_proizvoda'] ?? ''),
+            'broj_operacije' => trim($_POST['broj_operacije'] ?? NULL),
+            'verzija_napomena' => trim($_POST['verzija_napomena_edit'] ?? NULL)
+        ];
+        $grupeData = $_POST['grupe'] ?? [];
+        if (is_array($grupeData)) {
+            $grupeData = array_filter($grupeData, 'is_array');
+        }
+        
+        $errors = $this->validatePlanData($planData, $grupeData, true, $id);
+        if (!empty($errors)) {
+            $_SESSION['form_errors'] = $errors;
             $_SESSION['form_data'] = $_POST;
             header('Location: ' . rtrim(APP_URL, '/') . '/public/index.php?page=admin_plan_edit&id=' . $id);
             exit;
         }
-        $noviPlanId = $this->planKontroleModel->createNewVersion($id, $planData, $grupeData, $_FILES['grupe'] ?? [], $_SESSION['user_id'], $napomena);
-        if ($noviPlanId) {
-            $_SESSION['success_message'] = 'Uspešno je kreirana nova verzija plana kontrole.';
-            header('Location: ' . rtrim(APP_URL, '/') . '/public/index.php?page=admin_plan_show&id=' . $noviPlanId);
-        } else {
-            $_SESSION['error_message'] = 'Došlo je do greške prilikom kreiranja nove verzije.';
-            header('Location: ' . rtrim(APP_URL, '/') . '/public/index.php?page=admin_plan_edit&id=' . $id);
+
+        $action = $_POST['form_action'] ?? 'minor_edit';
+
+        if ($action === 'new_version') {
+            $napomena = trim($_POST['verzija_napomena'] ?? '');
+            if (empty($napomena)) {
+                $_SESSION['form_errors'] = ['Napomena o izmeni je obavezna prilikom kreiranja nove verzije.'];
+                $_SESSION['form_data'] = $_POST;
+                header('Location: ' . rtrim(APP_URL, '/') . '/public/index.php?page=admin_plan_edit&id=' . $id);
+                exit;
+            }
+            $noviPlanId = $this->planKontroleModel->createNewVersion($id, $planData, $grupeData, $_FILES['grupe'] ?? [], $_SESSION['user_id'], $napomena);
+            if ($noviPlanId) {
+                $_SESSION['success_message'] = 'Uspešno je kreirana nova verzija plana kontrole.';
+                header('Location: ' . rtrim(APP_URL, '/') . '/public/index.php?page=admin_plan_show&id=' . $noviPlanId);
+            } else {
+                $_SESSION['error_message'] = 'Došlo je do greške prilikom kreiranja nove verzije.';
+                header('Location: ' . rtrim(APP_URL, '/') . '/public/index.php?page=admin_plan_edit&id=' . $id);
+            }
+        } else { // 'minor_edit'
+            if ($this->planKontroleModel->updatePlan($id, $planData, $grupeData, $_FILES['grupe'] ?? [], $_SESSION['user_id'])) {
+                $_SESSION['success_message'] = 'Plan kontrole je uspešno ažuriran.';
+                header('Location: ' . rtrim(APP_URL, '/') . '/public/index.php?page=admin_plan_show&id=' . $id);
+            } else {
+                $_SESSION['error_message'] = 'Došlo je do greške prilikom ažuriranja baze.';
+                header('Location: ' . rtrim(APP_URL, '/') . '/public/index.php?page=admin_plan_edit&id=' . $id);
+            }
         }
-    } else { // 'minor_edit'
-        if ($this->planKontroleModel->updatePlan($id, $planData, $grupeData, $_FILES['grupe'] ?? [], $_SESSION['user_id'])) {
-            $_SESSION['success_message'] = 'Plan kontrole je uspešno ažuriran.';
-            header('Location: ' . rtrim(APP_URL, '/') . '/public/index.php?page=admin_plan_show&id=' . $id);
-        } else {
-            $_SESSION['error_message'] = 'Došlo je do greške prilikom ažuriranja baze.';
-            header('Location: ' . rtrim(APP_URL, '/') . '/public/index.php?page=admin_plan_edit&id=' . $id);
-        }
-    }
-    exit;
+        exit;
     }
 
     public function delete($id) {
@@ -240,4 +249,3 @@ class PlanKontroleController {
     }
 }
 ?>
- 

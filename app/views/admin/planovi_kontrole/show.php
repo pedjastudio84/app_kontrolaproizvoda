@@ -11,14 +11,7 @@ if (!defined('PAGE_TITLE')) {
 ?>
 
 <div class="container-fluid">
-    <nav aria-label="breadcrumb">
-        <ol class="breadcrumb">
-            <li class="breadcrumb-item"><a href="<?php echo rtrim(APP_URL, '/'); ?>/public/index.php?page=admin_dashboard">Admin Dashboard</a></li>
-            <li class="breadcrumb-item"><a href="<?php echo rtrim(APP_URL, '/'); ?>/public/index.php?page=admin_plans">Upravljanje Planovima Kontrole</a></li>
-            <li class="breadcrumb-item active" aria-current="page">Pregled Plana</li>
-        </ol>
-    </nav>
-
+  
     <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
         <h1 class="mb-0"><?php echo htmlspecialchars(PAGE_TITLE); ?> <span class="badge bg-info">Verzija <?php echo htmlspecialchars($plan['verzija_broj']); ?></span></h1>
         <div class="btn-toolbar" role="toolbar">

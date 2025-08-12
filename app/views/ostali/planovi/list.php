@@ -3,50 +3,26 @@ if (!defined('PAGE_TITLE')) {
     define('PAGE_TITLE', 'Pregled Planova Kontrole'); 
 } 
 
-// Pravimo query string za paginaciju koji čuva postojeće parametre pretrage
-// kako bi pretraga radila i nakon promene stranice.
+// Ažuriramo query string za paginaciju da koristi novi, univerzalni parametar
 $pagination_query_params = http_build_query([
-    'search_broj_plana' => $search_params['broj_plana'] ?? '',
-    'search_ident' => $search_params['ident'] ?? '',
-    'search_kataloska' => $search_params['kataloska'] ?? '',
-    'search_naziv' => $search_params['naziv'] ?? '',
+    'search' => $search_params['query'] ?? '',
 ]);
 ?>
 
 <h1><?php echo htmlspecialchars(PAGE_TITLE); ?></h1>
 
-<div class="card mb-4">
-    <div class="card-header">
-        <i class="fas fa-search"></i> Pretraga Planova Kontrole
+<form action="<?php echo rtrim(APP_URL, '/'); ?>/public/index.php" method="GET" class="mb-4">
+    <input type="hidden" name="page" value="pregled_planova">
+    <div class="input-group">
+        <input type="text" 
+               name="search" 
+               class="form-control" 
+               placeholder="Pretraži planove (broj, ident, kat. oznaka, naziv)..."
+               value="<?php echo htmlspecialchars($search_params['query'] ?? ''); ?>">
+        <button type="submit" class="btn btn-primary px-4"><i class="fa-solid fa-search"></i></button>
+        <a href="?page=pregled_planova" class="btn btn-outline-secondary" title="Poništi filtere"><i class="fa-solid fa-xmark"></i></a>
     </div>
-    <div class="card-body">
-        <form action="<?php echo rtrim(APP_URL, '/'); ?>/public/index.php" method="GET">
-            <input type="hidden" name="page" value="pregled_planova">
-            <div class="row align-items-end">
-                <div class="col-md-3 mb-2">
-                    <label for="search_broj_plana" class="form-label">Broj plana</label>
-                    <input type="text" class="form-control" id="search_broj_plana" name="search_broj_plana" placeholder="Unesite broj plana..." value="<?php echo htmlspecialchars($search_params['broj_plana'] ?? ''); ?>">
-                </div>
-                <div class="col-md-3 mb-2">
-                    <label for="search_ident" class="form-label">Ident proizvoda</label>
-                    <input type="text" class="form-control" id="search_ident" name="search_ident" placeholder="Unesite ident..." value="<?php echo htmlspecialchars($search_params['ident'] ?? ''); ?>">
-                </div>
-                <div class="col-md-3 mb-2">
-                    <label for="search_kataloska" class="form-label">Kataloška oznaka</label>
-                    <input type="text" class="form-control" id="search_kataloska" name="search_kataloska" placeholder="Unesite kat. oznaku..." value="<?php echo htmlspecialchars($search_params['kataloska'] ?? ''); ?>">
-                </div>
-                <div class="col-md-3 mb-2">
-                    <label for="search_naziv" class="form-label">Naziv proizvoda</label>
-                    <input type="text" class="form-control" id="search_naziv" name="search_naziv" placeholder="Unesite naziv..." value="<?php echo htmlspecialchars($search_params['naziv'] ?? ''); ?>">
-                </div>
-            </div>
-            <div class="d-flex justify-content-end mt-2">
-                <a href="<?php echo rtrim(APP_URL, '/'); ?>/public/index.php?page=pregled_planova" class="btn btn-secondary me-2">Poništi filtere</a>
-                <button type="submit" class="btn btn-primary">Pretraži</button>
-            </div>
-        </form>
-    </div>
-</div>
+</form>
 
 <div class="table-responsive">
     <table class="table table-striped table-bordered table-hover">
@@ -77,7 +53,7 @@ $pagination_query_params = http_build_query([
                     </tr>
                 <?php endforeach; ?>
             <?php else: ?>
-                <tr><td colspan="6" class="text-center">Nema planova kontrole.</td></tr>
+                <tr><td colspan="6" class="text-center">Nema rezultata za zadate kriterijume pretrage.</td></tr>
             <?php endif; ?>
         </tbody>
     </table>
