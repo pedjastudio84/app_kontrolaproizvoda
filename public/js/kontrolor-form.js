@@ -194,9 +194,39 @@ if (!isEditMode && !hasFormData) {
             const imageData = canvas.getImageData(0, 0, canvasElement.width, canvasElement.height);
             const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: "dontInvert" });
             if (code && code.data !== "") {
-                document.getElementById('beepSound').play();
+               // --- POČETAK IZMENE ---
+
+            // 1. Zaustavljamo dalje skeniranje da se ne bi ponovilo
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+                animationFrameId = null;
+            }
+
+            // 2. Puštamo zvuk i prikazujemo vizuelnu potvrdu
+            document.getElementById('beepSound').play();
+             if ('vibrate' in navigator) { navigator.vibrate(200); } // Vibracija od 200 milisekundi
+            const overlay = document.getElementById('scan-success-overlay');
+            overlay.style.display = 'flex'; // Prvo ga učinimo vidljivim
+            setTimeout(() => { // Mali delay da bi CSS tranzicija radila
+                overlay.classList.add('visible');
+            }, 10);
+
+            // 3. Postavljamo tajmer od 2 sekunde
+            setTimeout(() => {
+                // Nakon 2 sekunde, sakrivamo sloj
+                overlay.classList.remove('visible');
+                setTimeout(() => { // Čekamo da se završi fade-out tranzicija
+                    overlay.style.display = 'none';
+                }, 300);
+
+                // Zatim nastavljamo sa ostatkom logike
                 stopScan();
                 parseQRDataAndFillForm(code.data);
+
+            }, 2000); // 2000 milisekundi = 2 sekunde
+
+            return; // Izlazimo iz funkcije da se ne bi nastavila petlja
+            // --- KRAJ IZMENE ---
             }
         }
         if (stream) { animationFrameId = requestAnimationFrame(tick); }

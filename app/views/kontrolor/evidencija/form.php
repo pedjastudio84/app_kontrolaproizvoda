@@ -48,7 +48,12 @@ $rezultati = $isEdit ? $evidencija['rezultati'] : ($formDataSource['rezultati'] 
                 <div class="card h-100">
                     <div class="card-header"><h4>1. Skeniranje QR Koda</h4></div>
                     <div class="card-body text-center d-flex flex-column justify-content-center">
-                        <div id="scanner-container" style="display: none;"><video id="video" playsinline></video><div id="scan-box"></div></div>
+                        <div id="scanner-container" style="display: none;"><video id="video" playsinline></video><div id="scan-box"></div>
+                    <div id="scan-success-overlay" style="display: none;">
+                    <i class="fa-solid fa-check"></i>
+                     </div>
+
+                    </div>
                         <div id="loadingMessage" class="alert alert-info mt-3">📸 Kamera nije aktivna.</div>
                         <canvas id="canvas" hidden></canvas>
                         <div id="output" class="mt-3">
