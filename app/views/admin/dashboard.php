@@ -1,6 +1,28 @@
 <?php
 if (!defined('PAGE_TITLE')) { define('PAGE_TITLE', 'Admin - Kontrolna tabla'); }
 if (session_status() == PHP_SESSION_NONE) { session_start(); }
+
+// Pomoćna funkcija za generisanje bedževa na osnovu vrste kontrole
+function formatirajVrstuKontroleBadge($vrsta) {
+    $boja = 'bg-secondary';
+    $tekst = 'Nepoznata';
+    switch ($vrsta) {
+        case 'redovna_kontrola':
+            $tekst = 'Redovna';
+            $boja = 'bg-success';
+            break;
+        case 'kontrola_pre_isporuke':
+            $tekst = 'Pre Isporuke';
+            $boja = 'bg-info text-dark';
+            break;
+        case 'vanredna_kontrola':
+            $tekst = 'Vanredna';
+            $boja = 'bg-warning text-dark';
+            break;
+    }
+    // Vraćamo kompletan HTML za bedž
+    return "<span class=\"badge {$boja}\">{$tekst}</span>";
+}
 ?>
 
 <div class="container">
@@ -8,7 +30,6 @@ if (session_status() == PHP_SESSION_NONE) { session_start(); }
     <p>Dobrodošli na administratorsku kontrolnu tablu, <strong><?php echo htmlspecialchars($_SESSION['user_ime'] ?? $_SESSION['user_korisnicko_ime']); ?></strong>!</p>
 
     <?php
-    // === DODAT KOD ZA PRIKAZIVANJE PORUKA ===
     if (isset($_SESSION['success_message'])) {
         echo '<div class="alert alert-success alert-dismissible fade show" role="alert">' . htmlspecialchars($_SESSION['success_message']) . '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button></div>';
         unset($_SESSION['success_message']);
@@ -17,7 +38,6 @@ if (session_status() == PHP_SESSION_NONE) { session_start(); }
         echo '<div class="alert alert-danger alert-dismissible fade show" role="alert">' . htmlspecialchars($_SESSION['error_message']) . '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button></div>';
         unset($_SESSION['error_message']);
     }
-    // === KRAJ DODATOG KODA ===
     ?>
 
     <div class="row mb-4 g-3">
@@ -78,8 +98,20 @@ if (session_status() == PHP_SESSION_NONE) { session_start(); }
                                     <h6 class="mb-1"><?php echo htmlspecialchars($record['product_naziv_sken']); ?></h6>
                                     <small>#<?php echo htmlspecialchars($record['id']); ?></small>
                                 </div>
-                                <p class="mb-1">Kat. oznaka: <strong><?php echo htmlspecialchars($record['product_kataloska_oznaka_sken'] ?? '-'); ?></strong></p>
-                                <small class="text-muted">Kontrolor: <?php echo htmlspecialchars($record['kontrolor_puno_ime']); ?> | <?php echo htmlspecialchars(date('d.m.Y H:i', strtotime($record['datum_vreme_ispitivanja']))); ?></small>
+                                <p class="mb-1">
+                                    Kat. oznaka: <strong><?php echo htmlspecialchars($record['product_kataloska_oznaka_sken'] ?? '-'); ?></strong>
+                                    <span class="mx-2">|</span>
+                                    Ser. broj: <strong><?php echo htmlspecialchars($record['product_serijski_broj_sken'] ?? '-'); ?></strong>
+                                </p>
+                                <small class="text-muted d-flex align-items-center flex-wrap">
+                                    <span>Kontrolor: <?php echo htmlspecialchars($record['kontrolor_puno_ime']); ?> |</span>
+                                    <span class="ms-1">
+                                        <?php echo htmlspecialchars(date('d.m.Y H:i', strtotime($record['datum_vreme_ispitivanja']))); ?>
+                                    </span>
+                                    <span class="ms-2">
+                                        <?php echo formatirajVrstuKontroleBadge($record['vrsta_kontrole']); ?>
+                                    </span>
+                                </small>
                             </a>
                         <?php endforeach; ?>
                     <?php else: ?>
@@ -107,7 +139,6 @@ if (session_status() == PHP_SESSION_NONE) { session_start(); }
                                 <small class="text-muted">
                                     Kreirao: <?php echo htmlspecialchars($plan['kreator_puno_ime']); ?> | <?php echo htmlspecialchars(date('d.m.Y', strtotime($plan['kreiran_datuma']))); ?>
                                     <?php
-                                    // Prikazujemo datum izmene samo ako se razlikuje od datuma kreiranja
                                     if (date('Y-m-d', strtotime($plan['azuriran_datuma'])) != date('Y-m-d', strtotime($plan['kreiran_datuma']))) {
                                         echo ' | Izmenjen: ' . htmlspecialchars(date('d.m.Y', strtotime($plan['azuriran_datuma'])));
                                     }

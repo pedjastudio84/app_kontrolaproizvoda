@@ -429,19 +429,26 @@ class Evidencija {
     }
 
     public function getLatestRecords($limit = 5) {
-        $sql = "SELECT e.id, e.product_naziv_sken, e.product_kataloska_oznaka_sken, e.datum_vreme_ispitivanja, CONCAT(u.ime, ' ', u.prezime) as kontrolor_puno_ime
-                FROM evidencije_kontrole e
-                LEFT JOIN korisnici u ON e.kontrolor_id = u.id
-                ORDER BY e.id DESC
-                LIMIT :limit";
-        try {
-            $stmt = $this->db->prepare($sql);
-            $stmt->bindParam(':limit', $limit, PDO::PARAM_INT);
-            $stmt->execute();
-            return $stmt->fetchAll(PDO::FETCH_ASSOC);
-        } catch (PDOException $e) {
-            error_log("Greška u Evidencija::getLatestRecords: " . $e->getMessage());
-            return [];
+    $sql = "SELECT 
+                e.id, 
+                e.product_naziv_sken, 
+                e.product_kataloska_oznaka_sken, 
+                e.product_serijski_broj_sken, -- DODATO
+                e.vrsta_kontrole,             -- DODATO
+                e.datum_vreme_ispitivanja, 
+                CONCAT(u.ime, ' ', u.prezime) as kontrolor_puno_ime
+            FROM evidencije_kontrole e
+            LEFT JOIN korisnici u ON e.kontrolor_id = u.id
+            ORDER BY e.id DESC
+            LIMIT :limit";
+    try {
+        $stmt = $this->db->prepare($sql);
+        $stmt->bindParam(':limit', $limit, PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (PDOException $e) {
+        error_log("Greška u Evidencija::getLatestRecords: " . $e->getMessage());
+        return [];
         }
     }
 

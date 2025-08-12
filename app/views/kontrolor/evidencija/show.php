@@ -50,36 +50,40 @@ function formatirajVrstuKontrole($vrsta) {
         </div>
     </div>
 
-    <div class="card mb-4">
-        <div class="card-header">Osnovni Podaci</div>
-        <div class="card-body">
-            <dl class="row mb-0">
-                <dt class="col-sm-4">ID Zapisa:</dt><dd class="col-sm-8">#<?php echo $evidencija['id']; ?></dd>
-                <dt class="col-sm-4">Vrsta kontrole:</dt><dd class="col-sm-8"><?php echo htmlspecialchars(formatirajVrstuKontrole($evidencija['vrsta_kontrole'])); ?></dd>
-                <dt class="col-sm-4">Datum i vreme:</dt><dd class="col-sm-8"><?php echo date('d.m.Y H:i:s', strtotime($evidencija['datum_vreme_ispitivanja'])); ?></dd>
-                <dt class="col-sm-4">Kontrolor:</dt><dd class="col-sm-8"><?php echo htmlspecialchars($evidencija['kontrolor_puno_ime']); ?></dd>
-                <dt class="col-sm-4">Korišćen plan:</dt><dd class="col-sm-8"><?php echo htmlspecialchars($evidencija['plan']['broj_plana_kontrole'] ?? 'N/A'); ?> (Verzija: <?php echo htmlspecialchars($evidencija['plan']['verzija_broj'] ?? 'N/A'); ?>)</dd>
-
-            </dl>
+    <div class="row">
+        <div class="col-lg-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header">Osnovni Podaci</div>
+                <div class="card-body">
+                    <dl class="row mb-0">
+                        <dt class="col-sm-4">ID Zapisa:</dt><dd class="col-sm-8">#<?php echo $evidencija['id']; ?></dd>
+                        <dt class="col-sm-4">Vrsta kontrole:</dt><dd class="col-sm-8"><?php echo htmlspecialchars(formatirajVrstuKontrole($evidencija['vrsta_kontrole'])); ?></dd>
+                        <dt class="col-sm-4">Datum i vreme:</dt><dd class="col-sm-8"><?php echo date('d.m.Y H:i:s', strtotime($evidencija['datum_vreme_ispitivanja'])); ?></dd>
+                        <dt class="col-sm-4">Kontrolor:</dt><dd class="col-sm-8"><?php echo htmlspecialchars($evidencija['kontrolor_puno_ime']); ?></dd>
+                        <dt class="col-sm-4">Korišćen plan:</dt><dd class="col-sm-8"><?php echo htmlspecialchars($evidencija['plan']['broj_plana_kontrole'] ?? 'N/A'); ?> (Verzija: <?php echo htmlspecialchars($evidencija['plan']['verzija_broj'] ?? 'N/A'); ?>)</dd>
+                    </dl>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header">Podaci o Proizvodu</div>
+                <div class="card-body">
+                    <dl class="row mb-0">
+                        <dt class="col-sm-4">Ident:</dt><dd class="col-sm-8"><?php echo htmlspecialchars($evidencija['product_ident_sken']); ?></dd>
+                        <dt class="col-sm-4">Naziv:</dt><dd class="col-sm-8"><?php echo htmlspecialchars($evidencija['product_naziv_sken']); ?></dd>
+                        <dt class="col-sm-4">Kataloška oznaka:</dt><dd class="col-sm-8"><?php echo htmlspecialchars($evidencija['product_kataloska_oznaka_sken']); ?></dd>
+                        <dt class="col-sm-4">Serijski broj:</dt><dd class="col-sm-8"><?php echo htmlspecialchars($evidencija['product_serijski_broj_sken']); ?></dd>
+                        <?php if (!empty($evidencija['ime_kupca'])): ?>
+                            <dt class="col-sm-4">Ime Kupca:</dt>
+                            <dd class="col-sm-8"><?php echo htmlspecialchars($evidencija['ime_kupca']); ?></dd>
+                        <?php endif; ?>
+                    </dl>
+                </div>
+            </div>
         </div>
     </div>
-    
-    <div class="card mb-4">
-        <div class="card-header">Podaci o Proizvodu</div>
-        <div class="card-body">
-            <dl class="row mb-0">
-                <dt class="col-sm-4">Ident:</dt><dd class="col-sm-8"><?php echo htmlspecialchars($evidencija['product_ident_sken']); ?></dd>
-                <dt class="col-sm-4">Naziv:</dt><dd class="col-sm-8"><?php echo htmlspecialchars($evidencija['product_naziv_sken']); ?></dd>
-                <dt class="col-sm-4">Kataloška oznaka:</dt><dd class="col-sm-8"><?php echo htmlspecialchars($evidencija['product_kataloska_oznaka_sken']); ?></dd>
-                <dt class="col-sm-4">Serijski broj:</dt><dd class="col-sm-8"><?php echo htmlspecialchars($evidencija['product_serijski_broj_sken']); ?></dd>
-                <?php if (!empty($evidencija['ime_kupca'])): ?>
-                    <dt class="col-sm-4">Ime Kupca:</dt>
-                    <dd class="col-sm-8"><?php echo htmlspecialchars($evidencija['ime_kupca']); ?></dd>
-                <?php endif; ?>
-            </dl>
-        </div>
-    </div>
-
     <div class="card mt-4">
         <div class="card-header">Rezultati Ček-Liste</div>
         <div class="card-body">
