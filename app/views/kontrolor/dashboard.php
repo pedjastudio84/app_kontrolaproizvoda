@@ -11,6 +11,19 @@ if (session_status() == PHP_SESSION_NONE) {
     <h1><?php echo htmlspecialchars(PAGE_TITLE); ?></h1>
     <p>Dobrodošli, <strong><?php echo htmlspecialchars($_SESSION['user_ime'] ?? $_SESSION['user_korisnicko_ime']); ?></strong>!</p>
 
+    <?php
+    // === DODAT KOD ZA PRIKAZIVANJE PORUKA ===
+    if (isset($_SESSION['success_message'])) {
+        echo '<div class="alert alert-success alert-dismissible fade show" role="alert">' . htmlspecialchars($_SESSION['success_message']) . '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button></div>';
+        unset($_SESSION['success_message']);
+    }
+    if (isset($_SESSION['error_message'])) {
+        echo '<div class="alert alert-danger alert-dismissible fade show" role="alert">' . htmlspecialchars($_SESSION['error_message']) . '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button></div>';
+        unset($_SESSION['error_message']);
+    }
+    // === KRAJ DODATOG KODA ===
+    ?>
+
     <div class="row mt-4">
         <div class="col-md-4 mb-3">
             <div class="card text-center text-bg-success">

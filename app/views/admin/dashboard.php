@@ -7,6 +7,19 @@ if (session_status() == PHP_SESSION_NONE) { session_start(); }
     <h1><?php echo htmlspecialchars(PAGE_TITLE); ?></h1>
     <p>Dobrodošli na administratorsku kontrolnu tablu, <strong><?php echo htmlspecialchars($_SESSION['user_ime'] ?? $_SESSION['user_korisnicko_ime']); ?></strong>!</p>
 
+    <?php
+    // === DODAT KOD ZA PRIKAZIVANJE PORUKA ===
+    if (isset($_SESSION['success_message'])) {
+        echo '<div class="alert alert-success alert-dismissible fade show" role="alert">' . htmlspecialchars($_SESSION['success_message']) . '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button></div>';
+        unset($_SESSION['success_message']);
+    }
+    if (isset($_SESSION['error_message'])) {
+        echo '<div class="alert alert-danger alert-dismissible fade show" role="alert">' . htmlspecialchars($_SESSION['error_message']) . '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button></div>';
+        unset($_SESSION['error_message']);
+    }
+    // === KRAJ DODATOG KODA ===
+    ?>
+
     <div class="row mb-4 g-3">
         <div class="col-lg col-md-4 col-sm-6">
             <div class="card text-center text-white bg-success h-100">
@@ -86,21 +99,21 @@ if (session_status() == PHP_SESSION_NONE) { session_start(); }
                     <?php if (isset($latest_plans) && !empty($latest_plans)): ?>
                         <?php foreach ($latest_plans as $plan): ?>
                            <a href="<?php echo rtrim(APP_URL, '/'); ?>/public/index.php?page=admin_plan_show&id=<?php echo $plan['id']; ?>" class="list-group-item list-group-item-action">
-    <div class="d-flex w-100 justify-content-between">
-        <h6 class="mb-1"><?php echo htmlspecialchars($plan['naziv_proizvoda']); ?></h6>
-        <small>Plan: <?php echo htmlspecialchars($plan['broj_plana_kontrole']); ?> (ver. <?php echo htmlspecialchars($plan['verzija_broj']); ?>)</small>
-    </div>
-    <p class="mb-1">Kat. oznaka: <strong><?php echo htmlspecialchars($plan['kataloska_oznaka'] ?? '-'); ?></strong></p>
-    <small class="text-muted">
-        Kreirao: <?php echo htmlspecialchars($plan['kreator_puno_ime']); ?> | <?php echo htmlspecialchars(date('d.m.Y', strtotime($plan['kreiran_datuma']))); ?>
-        <?php
-        // Prikazujemo datum izmene samo ako se razlikuje od datuma kreiranja
-        if (date('Y-m-d', strtotime($plan['azuriran_datuma'])) != date('Y-m-d', strtotime($plan['kreiran_datuma']))) {
-            echo ' | Izmenjen: ' . htmlspecialchars(date('d.m.Y', strtotime($plan['azuriran_datuma'])));
-        }
-        ?>
-    </small>
-</a>
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h6 class="mb-1"><?php echo htmlspecialchars($plan['naziv_proizvoda']); ?></h6>
+                                    <small>Plan: <?php echo htmlspecialchars($plan['broj_plana_kontrole']); ?> (ver. <?php echo htmlspecialchars($plan['verzija_broj']); ?>)</small>
+                                </div>
+                                <p class="mb-1">Kat. oznaka: <strong><?php echo htmlspecialchars($plan['kataloska_oznaka'] ?? '-'); ?></strong></p>
+                                <small class="text-muted">
+                                    Kreirao: <?php echo htmlspecialchars($plan['kreator_puno_ime']); ?> | <?php echo htmlspecialchars(date('d.m.Y', strtotime($plan['kreiran_datuma']))); ?>
+                                    <?php
+                                    // Prikazujemo datum izmene samo ako se razlikuje od datuma kreiranja
+                                    if (date('Y-m-d', strtotime($plan['azuriran_datuma'])) != date('Y-m-d', strtotime($plan['kreiran_datuma']))) {
+                                        echo ' | Izmenjen: ' . htmlspecialchars(date('d.m.Y', strtotime($plan['azuriran_datuma'])));
+                                    }
+                                    ?>
+                                </small>
+                            </a>
                         <?php endforeach; ?>
                     <?php else: ?>
                         <div class="list-group-item">Nema kreiranih planova kontrole.</div>
@@ -109,5 +122,4 @@ if (session_status() == PHP_SESSION_NONE) { session_start(); }
             </div>
         </div>
     </div>
-
 </div>

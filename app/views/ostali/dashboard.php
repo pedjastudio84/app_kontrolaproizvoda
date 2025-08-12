@@ -1,5 +1,5 @@
 <?php
-// === NOVI KOD: Definišemo ispravan link za pregled evidencija na osnovu uloge ===
+// === KOD KOJI VEĆ POSTOJI: Definišemo ispravan link za pregled evidencija na osnovu uloge ===
 $link_za_pregled_evidencija = '#'; // Podrazumevana vrednost
 if (isset($_SESSION['user_uloga'])) {
     if ($_SESSION['user_uloga'] === 'administrator' || $_SESSION['user_uloga'] === 'ostali') {
@@ -8,11 +8,23 @@ if (isset($_SESSION['user_uloga'])) {
         $link_za_pregled_evidencija = rtrim(APP_URL, '/') . '/public/index.php?page=kontrolor_moji_zapisi';
     }
 }
-// === KRAJ NOVOG KODA ===
 ?>
 <div class="container">
     <h1>Kontrolna tabla</h1>
     <p>Dobrodošli, <strong><?php echo htmlspecialchars($_SESSION['user_ime'] ?? $_SESSION['user_korisnicko_ime']); ?></strong>!</p>
+
+    <?php
+    // === DODAT KOD ZA PRIKAZIVANJE PORUKA ===
+    if (isset($_SESSION['success_message'])) {
+        echo '<div class="alert alert-success alert-dismissible fade show" role="alert">' . htmlspecialchars($_SESSION['success_message']) . '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button></div>';
+        unset($_SESSION['success_message']);
+    }
+    if (isset($_SESSION['error_message'])) {
+        echo '<div class="alert alert-danger alert-dismissible fade show" role="alert">' . htmlspecialchars($_SESSION['error_message']) . '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button></div>';
+        unset($_SESSION['error_message']);
+    }
+    // === KRAJ DODATOG KODA ===
+    ?>
 
     <div class="row mb-4 g-3">
         <div class="col-lg col-md-6 col-sm-6">
