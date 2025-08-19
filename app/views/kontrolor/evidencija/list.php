@@ -14,7 +14,7 @@ $pagination_query_params = http_build_query([
 
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h1><?php echo htmlspecialchars(PAGE_TITLE); ?></h1>
-    <a href="<?php echo rtrim(APP_URL, '/'); ?>/public/index.php?page=kontrolor_novi_zapis&vrsta=redovna_kontrola" class="btn btn-success"> <i class="fa-solid fa-plus me-1"></i>Novi zapis</a>
+    <a href="<?php echo rtrim(APP_URL, '/'); ?>/public/index.php?page=kontrolor_biraj_vrstu" class="btn btn-success"> <i class="fa-solid fa-plus me-1"></i>Novi zapis</a>
 </div>
 
 <?php
