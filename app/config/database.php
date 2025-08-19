@@ -5,7 +5,7 @@
 define('DB_HOST', 'localhost');         // Ili IP adresa vašeg MySQL servera, npr. 127.0.0.1
 define('DB_USER', 'root');             // Vaše MySQL korisničko ime
 define('DB_PASS', '');                 // Vaša MySQL lozinka (ako je imate, npr. 'your_password')
-define('DB_NAME', 'kontrolaproizvoda_db'); // Naziv baze podataka koju ste kreirali
+define('DB_NAME', 'kp_db_2'); // Naziv baze podataka koju ste kreirali
 
 // Opcije za PDO konekciju
 $options = [
