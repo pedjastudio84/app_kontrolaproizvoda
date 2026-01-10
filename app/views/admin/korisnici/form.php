@@ -7,13 +7,7 @@ if (!defined('PAGE_TITLE')) { define('PAGE_TITLE', $pageTitle); }
 
 <div class="row">
     <div class="col-md-8">
-        <nav aria-label="breadcrumb">
-            <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="<?php echo rtrim(APP_URL, '/'); ?>/public/index.php?page=admin_dashboard">Admin Dashboard</a></li>
-                <li class="breadcrumb-item"><a href="<?php echo rtrim(APP_URL, '/'); ?>/public/index.php?page=admin_users">Upravljanje korisnicima</a></li>
-                <li class="breadcrumb-item active" aria-current="page"><?php echo $isEdit ? 'Izmena' : 'Dodavanje'; ?></li>
-            </ol>
-        </nav>
+        
         
         <h1><?php echo $pageTitle; ?></h1>
 

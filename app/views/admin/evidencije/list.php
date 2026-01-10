@@ -2,20 +2,15 @@
 if (!defined('PAGE_TITLE')) { define('PAGE_TITLE', 'Pregled Svih Evidencija'); }
 if (session_status() == PHP_SESSION_NONE) { session_start(); }
 
-// Pravimo query string za paginaciju koji čuva parametre pretrage
-// kako bi pretraga radila i nakon promene stranice.
 $pagination_query_params = http_build_query([
-    'search_ident' => $search_params['ident'] ?? '',
-    'search_kataloska' => $search_params['kataloska'] ?? '',
-    'search_serijski' => $search_params['serijski'] ?? '',
+    'search' => $search_params['query'] ?? '',
     'search_kontrolor' => $search_params['kontrolor'] ?? '',
 ]);
 ?>
 
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h1><?php echo htmlspecialchars(PAGE_TITLE); ?></h1>
-    </div>
-
+</div>
 
 <?php
 if (isset($_SESSION['success_message'])) {
@@ -28,38 +23,33 @@ if (isset($_SESSION['error_message'])) {
 }
 ?>
 
-<div class="card mb-4">
-    <div class="card-header">
-        <i class="fa-solid fa-search"></i> Pretraga Evidencija
+<form action="<?php echo rtrim(APP_URL, '/'); ?>/public/index.php" method="GET" class="mb-4">
+    <input type="hidden" name="page" value="admin_evidencije">
+    <div class="d-flex flex-wrap align-items-center gap-2">
+        <div class="flex-grow-1" style="min-width: 250px;">
+            <input type="text" 
+                   name="search" 
+                   class="form-control" 
+                   placeholder="Pretraži proizvod (ident, kat. oznaka, ser. broj)..."
+                   value="<?php echo htmlspecialchars($search_params['query'] ?? ''); ?>">
+        </div>
+        <div class="flex-grow-1" style="min-width: 200px;">
+            <input type="text" 
+                   name="search_kontrolor" 
+                   class="form-control" 
+                   placeholder="Pretraži po kontroloru..."
+                   value="<?php echo htmlspecialchars($search_params['kontrolor'] ?? ''); ?>">
+        </div>
+        <div class="btn-group">
+            <button type="submit" class="btn btn-primary">
+                <i class="fa-solid fa-search me-1"></i>Pretraži
+            </button>
+            <a href="?page=admin_evidencije" class="btn btn-outline-secondary" title="Poništi filtere">
+                <i class="fa-solid fa-xmark"></i>
+            </a>
+        </div>
     </div>
-    <div class="card-body">
-        <form action="<?php echo rtrim(APP_URL, '/'); ?>/public/index.php" method="GET">
-            <input type="hidden" name="page" value="admin_evidencije">
-            <div class="row align-items-end">
-                <div class="col-md-3 mb-2">
-                    <label for="search_ident" class="form-label">Ident proizvoda</label>
-                    <input type="text" class="form-control" id="search_ident" name="search_ident" placeholder="Unesite ident..." value="<?php echo htmlspecialchars($search_params['ident'] ?? ''); ?>">
-                </div>
-                <div class="col-md-3 mb-2">
-                    <label for="search_kataloska" class="form-label">Kataloška oznaka</label>
-                    <input type="text" class="form-control" id="search_kataloska" name="search_kataloska" placeholder="Unesite kat. oznaku..." value="<?php echo htmlspecialchars($search_params['kataloska'] ?? ''); ?>">
-                </div>
-                <div class="col-md-3 mb-2">
-                    <label for="search_serijski" class="form-label">Serijski broj</label>
-                    <input type="text" class="form-control" id="search_serijski" name="search_serijski" placeholder="Unesite serijski broj..." value="<?php echo htmlspecialchars($search_params['serijski'] ?? ''); ?>">
-                </div>
-                <div class="col-md-3 mb-2">
-                    <label for="search_kontrolor" class="form-label">Kontrolor</label>
-                    <input type="text" class="form-control" id="search_kontrolor" name="search_kontrolor" placeholder="Unesite ime kontrolora..." value="<?php echo htmlspecialchars($search_params['kontrolor'] ?? ''); ?>">
-                </div>
-            </div>
-            <div class="d-flex justify-content-end mt-2">
-                <a href="<?php echo rtrim(APP_URL, '/'); ?>/public/index.php?page=admin_evidencije" class="btn btn-secondary me-2">Poništi filtere</a>
-                <button type="submit" class="btn btn-primary">Pretraži</button>
-            </div>
-        </form>
-    </div>
-</div>
+</form>
 
 <div class="table-responsive">
     <table class="table table-striped table-bordered table-hover">
@@ -99,6 +89,8 @@ if (isset($_SESSION['error_message'])) {
                                             <i class="fa-solid fa-eye me-2"></i>Pregledaj
                                         </a>
                                     </li>
+                                    <?php // ===== ISPRAVKA: Prikazujemo linkove samo adminu ===== ?>
+                                    <?php if (isset($_SESSION['user_uloga']) && $_SESSION['user_uloga'] === 'administrator'): ?>
                                     <li>
                                         <a class="dropdown-item" href="<?php echo rtrim(APP_URL, '/'); ?>/public/index.php?page=kontrolor_zapis_edit&id=<?php echo $evidencija['id']; ?>">
                                             <i class="fa-solid fa-pen-to-square me-2"></i>Izmeni
@@ -113,6 +105,8 @@ if (isset($_SESSION['error_message'])) {
                                            <i class="fa-solid fa-trash me-2"></i>Obriši
                                         </a>
                                     </li>
+                                    <?php endif; ?>
+                                    <?php // ===== KRAJ ISPRAVKE ===== ?>
                                 </ul>
                             </div>
                         </td>

@@ -6,12 +6,9 @@ if (session_status() == PHP_SESSION_NONE) {
     session_start();
 }
 
-// Pravimo query string za paginaciju koji čuva trenutne parametre pretrage
-// kako pretraga ne bi bila resetovana prilikom promene stranice.
+// Ažuriramo query string za paginaciju da koristi novi, jedinstveni parametar pretrage.
 $pagination_query_params = http_build_query([
-    'search_ident' => $search_params['ident'] ?? '',
-    'search_kataloska' => $search_params['kataloska'] ?? '',
-    'search_serijski' => $search_params['serijski'] ?? '',
+    'search' => $search_params['query'] ?? '',
 ]);
 ?>
 
@@ -31,34 +28,25 @@ if (isset($_SESSION['error_message'])) {
 }
 ?>
 
-<div class="card mb-4">
-    <div class="card-header">
-        Pretraga Mojih Zapisa
+<form action="<?php echo rtrim(APP_URL, '/'); ?>/public/index.php" method="GET" class="mb-4">
+    <input type="hidden" name="page" value="kontrolor_moji_zapisi">
+
+    <div class="input-group">
+        <input type="text" 
+               name="search" 
+               class="form-control" 
+               placeholder="Unesite pojam za pretragu (ident, kataloška oznaka, serijski broj)..."
+               value="<?php echo htmlspecialchars($search_params['query'] ?? ''); ?>"
+               aria-label="Univerzalna pretraga">
+        
+        <button type="submit" class="btn btn-primary px-4">
+            <i class="fa-solid fa-search"></i>
+        </button>
+        <a href="?page=kontrolor_moji_zapisi" class="btn btn-outline-secondary" title="Poništi filtere">
+            <i class="fa-solid fa-xmark"></i>
+        </a>
     </div>
-    <div class="card-body">
-        <form action="<?php echo rtrim(APP_URL, '/'); ?>/public/index.php" method="GET">
-            <input type="hidden" name="page" value="kontrolor_moji_zapisi">
-            <div class="row align-items-end">
-                <div class="col-md-4 mb-2">
-                    <label for="search_ident" class="form-label">Ident</label>
-                    <input type="text" class="form-control" id="search_ident" name="search_ident" placeholder="Unesite ident..." value="<?php echo htmlspecialchars($search_params['ident'] ?? ''); ?>">
-                </div>
-                <div class="col-md-4 mb-2">
-                    <label for="search_kataloska" class="form-label">Kataloška oznaka</label>
-                    <input type="text" class="form-control" id="search_kataloska" name="search_kataloska" placeholder="Unesite kat. oznaku..." value="<?php echo htmlspecialchars($search_params['kataloska'] ?? ''); ?>">
-                </div>
-                <div class="col-md-4 mb-2">
-                    <label for="search_serijski" class="form-label">Serijski broj</label>
-                    <input type="text" class="form-control" id="search_serijski" name="search_serijski" placeholder="Unesite serijski broj..." value="<?php echo htmlspecialchars($search_params['serijski'] ?? ''); ?>">
-                </div>
-            </div>
-            <div class="d-flex justify-content-end mt-2">
-                <a href="<?php echo rtrim(APP_URL, '/'); ?>/public/index.php?page=kontrolor_moji_zapisi" class="btn btn-secondary me-2">Poništi</a>
-                <button type="submit" class="btn btn-primary">Pretraži</button>
-            </div>
-        </form>
-    </div>
-</div>
+</form>
 
 
 <div class="table-responsive">

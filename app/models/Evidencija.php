@@ -1,4 +1,6 @@
 <?php
+require_once __DIR__ . '/PlanKontrole.php'; // Važno: Osiguravamo da je PlanKontrole model dostupan
+
 class Evidencija {
     private $db;
 
@@ -6,9 +8,6 @@ class Evidencija {
         $this->db = $db;
     }
 
-    /**
-     * Kreira kompletnu evidenciju kontrole unutar transakcije.
-     */
     public function create($data, $files, $kontrolorId) {
         try {
             $this->db->beginTransaction();
@@ -23,22 +22,29 @@ class Evidencija {
                 ':product_naziv_sken' => $data['naziv'],
                 ':product_serijski_broj_sken' => $data['serijski_broj'],
                 ':ostale_napomene' => $data['ostale_napomene'] ?? null,
-                ':ime_kupca' => $data['ime_kupca'] ?? null // DODATO
+                ':ime_kupca' => $data['ime_kupca'] ?? null
             ]);
             $evidencijaId = $this->db->lastInsertId();
 
-            // 2. Upis rezultata iz ček-liste
             if (!empty($data['rezultati']) && is_array($data['rezultati'])) {
-                $sqlRezultat = "INSERT INTO rezultati_karakteristika_evidencije (evidencija_kontrole_id, karakteristika_plana_id, opis_karakteristike_snapshot, rezultat_ok_nok, rezultat_tekst) VALUES (:evidencija_id, :karakteristika_id, :opis_snapshot, :rezultat_ok_nok, :rezultat_tekst)";
+                $sqlRezultat = "INSERT INTO rezultati_karakteristika_evidencije (evidencija_kontrole_id, karakteristika_plana_id, opis_karakteristike_snapshot, rezultat_ok_nok, rezultat_tekst, napomena) VALUES (:evidencija_id, :karakteristika_id, :opis_snapshot, :rezultat_ok_nok, :rezultat_tekst, :napomena)";
                 $stmtRezultat = $this->db->prepare($sqlRezultat);
                 foreach ($data['rezultati'] as $karakteristikaId => $rezultatData) {
                     $vrednost = $rezultatData['vrednost'] ?? null;
                     $opis_snapshot = $rezultatData['opis_snapshot'] ?? 'Nepoznat opis';
-                    $stmtRezultat->execute([':evidencija_id' => $evidencijaId, ':karakteristika_id' => $karakteristikaId, ':opis_snapshot' => $opis_snapshot, ':rezultat_ok_nok' => in_array($vrednost, ['OK', 'NOK']) ? $vrednost : null, ':rezultat_tekst' => !in_array($vrednost, ['OK', 'NOK']) ? $vrednost : null,]);
+                    $napomena = $rezultatData['napomena'] ?? null;
+
+                    $stmtRezultat->execute([
+                        ':evidencija_id' => $evidencijaId, 
+                        ':karakteristika_id' => $karakteristikaId, 
+                        ':opis_snapshot' => $opis_snapshot, 
+                        ':rezultat_ok_nok' => in_array($vrednost, ['OK', 'NOK']) ? $vrednost : null, 
+                        ':rezultat_tekst' => !in_array($vrednost, ['OK', 'NOK']) ? $vrednost : null,
+                        ':napomena' => $napomena
+                    ]);
                 }
             }
 
-            // 3. Obrada i upis fotografija mašine
             if (isset($files['masina_foto']) && !empty($files['masina_foto']['name'][0])) {
                 $sqlFoto = "INSERT INTO fotografije_masine_evidencije (evidencija_kontrole_id, putanja_fotografije) VALUES (:evidencija_id, :putanja)";
                 $stmtFoto = $this->db->prepare($sqlFoto);
@@ -50,14 +56,8 @@ class Evidencija {
 
                 foreach ($files['masina_foto']['name'] as $key => $name) {
                     if ($files['masina_foto']['error'][$key] === 0) {
-                        $datum = date('YmdHis');
-                        $ident = preg_replace('/[^a-zA-Z0-9-]/', '', $data['ident']);
-                        $kataloska = preg_replace('/[^a-zA-Z0-9-]/', '', $data['kataloska_oznaka']);
-                        $serijski = preg_replace('/[^a-zA-Z0-9-]/', '', $data['serijski_broj']);
                         $fileExtension = pathinfo(basename($name), PATHINFO_EXTENSION);
-                        
-                        $noviNazivFajla = "{$datum}_{$ident}_{$kataloska}_{$serijski}_{$key}.{$fileExtension}";
-
+                        $noviNazivFajla = basename($name, ".".$fileExtension) . "_" . time() . "." . $fileExtension;
                         $uploadFajl = $uploadDir . $noviNazivFajla;
                         if (move_uploaded_file($files['masina_foto']['tmp_name'][$key], $uploadFajl)) {
                             $putanjaZaBazu = $subDir . $noviNazivFajla;
@@ -68,7 +68,7 @@ class Evidencija {
             }
 
             $this->db->commit();
-            return true;
+            return $evidencijaId;
         } catch (Exception $e) {
             $this->db->rollBack();
             error_log("Greška u Evidencija::create: " . $e->getMessage());
@@ -76,33 +76,37 @@ class Evidencija {
         }
     }
 
-    /**
-     * Ažurira postojeću evidenciju u bazi.
-     */
     public function update($id, $data, $files) {
         try {
             $this->db->beginTransaction();
 
-            $sqlEvidencija = "UPDATE evidencije_kontrole SET product_ident_sken = :ident, product_kataloska_oznaka_sken = :kataloska_oznaka, product_naziv_sken = :naziv, product_serijski_broj_sken = :serijski_broj, ostale_napomene = :ostale_napomene WHERE id = :id";
+            $sqlEvidencija = "UPDATE evidencije_kontrole SET ostale_napomene = :ostale_napomene, ime_kupca = :ime_kupca WHERE id = :id";
             $stmtEvidencija = $this->db->prepare($sqlEvidencija);
             $stmtEvidencija->execute([
-                ':ident' => $data['ident'],
-                ':kataloska_oznaka' => $data['kataloska_oznaka'],
-                ':naziv' => $data['naziv'],
-                ':serijski_broj' => $data['serijski_broj'],
                 ':ostale_napomene' => $data['ostale_napomene'] ?? null,
+                ':ime_kupca' => $data['ime_kupca'] ?? null,
                 ':id' => $id
             ]);
 
             $stmtDeleteRezultati = $this->db->prepare("DELETE FROM rezultati_karakteristika_evidencije WHERE evidencija_kontrole_id = :id");
             $stmtDeleteRezultati->execute([':id' => $id]);
+            
             if (!empty($data['rezultati']) && is_array($data['rezultati'])) {
-                $sqlRezultat = "INSERT INTO rezultati_karakteristika_evidencije (evidencija_kontrole_id, karakteristika_plana_id, opis_karakteristike_snapshot, rezultat_ok_nok, rezultat_tekst) VALUES (:evidencija_id, :karakteristika_id, :opis_snapshot, :rezultat_ok_nok, :rezultat_tekst)";
+                $sqlRezultat = "INSERT INTO rezultati_karakteristika_evidencije (evidencija_kontrole_id, karakteristika_plana_id, opis_karakteristike_snapshot, rezultat_ok_nok, rezultat_tekst, napomena) VALUES (:evidencija_id, :karakteristika_id, :opis_snapshot, :rezultat_ok_nok, :rezultat_tekst, :napomena)";
                 $stmtRezultat = $this->db->prepare($sqlRezultat);
                 foreach ($data['rezultati'] as $karakteristikaId => $rezultatData) {
                     $vrednost = $rezultatData['vrednost'] ?? null;
                     $opis_snapshot = $rezultatData['opis_snapshot'] ?? 'Nepoznat opis';
-                    $stmtRezultat->execute([':evidencija_id' => $id, ':karakteristika_id' => $karakteristikaId, ':opis_snapshot' => $opis_snapshot, ':rezultat_ok_nok' => in_array($vrednost, ['OK', 'NOK']) ? $vrednost : null, ':rezultat_tekst' => !in_array($vrednost, ['OK', 'NOK']) ? $vrednost : null]);
+                    $napomena = $rezultatData['napomena'] ?? null;
+                    
+                    $stmtRezultat->execute([
+                        ':evidencija_id' => $id, 
+                        ':karakteristika_id' => is_numeric($karakteristikaId) ? $karakteristikaId : null,
+                        ':opis_snapshot' => $opis_snapshot, 
+                        ':rezultat_ok_nok' => in_array($vrednost, ['OK', 'NOK']) ? $vrednost : null, 
+                        ':rezultat_tekst' => !in_array($vrednost, ['OK', 'NOK']) ? $vrednost : null,
+                        ':napomena' => $napomena
+                    ]);
                 }
             }
 
@@ -133,14 +137,8 @@ class Evidencija {
                 
                 foreach ($files['masina_foto']['name'] as $key => $name) {
                     if ($files['masina_foto']['error'][$key] === 0) {
-                        $datum = date('YmdHis');
-                        $ident = preg_replace('/[^a-zA-Z0-9-]/', '', $data['ident']);
-                        $kataloska = preg_replace('/[^a-zA-Z0-9-]/', '', $data['kataloska_oznaka']);
-                        $serijski = preg_replace('/[^a-zA-Z0-9-]/', '', $data['serijski_broj']);
                         $fileExtension = pathinfo(basename($name), PATHINFO_EXTENSION);
-                        
-                        $noviNazivFajla = "{$datum}_{$ident}_{$kataloska}_{$serijski}_{$key}_" . time() . ".{$fileExtension}";
-
+                        $noviNazivFajla = basename($name, ".".$fileExtension) . "_" . time() . "." . $fileExtension;
                         $uploadFajl = $uploadDir . $noviNazivFajla;
                         if (move_uploaded_file($files['masina_foto']['tmp_name'][$key], $uploadFajl)) {
                             $putanjaZaBazu = $subDir . $noviNazivFajla;
@@ -159,19 +157,12 @@ class Evidencija {
         }
     }
 
-    public function deleteById($id) {
-        try {
-            $stmt = $this->db->prepare("DELETE FROM evidencije_kontrole WHERE id = :id");
-            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
-            return $stmt->execute();
-        } catch (PDOException $e) {
-            error_log("Greška u Evidencija::deleteById: " . $e->getMessage());
-            return false;
-        }
-    }
-
     public function getByIdWithDetails($id) {
-        $sql = "SELECT e.*, CONCAT(u.ime, ' ', u.prezime) as kontrolor_puno_ime, p.broj_plana_kontrole FROM evidencije_kontrole e JOIN korisnici u ON e.kontrolor_id = u.id LEFT JOIN planovi_kontrole p ON e.plan_kontrole_id = p.id WHERE e.id = :id";
+        $sql = "SELECT e.*, 
+                    CONCAT(u.ime, ' ', u.prezime) as kontrolor_puno_ime 
+                FROM evidencije_kontrole e 
+                LEFT JOIN korisnici u ON e.kontrolor_id = u.id 
+                WHERE e.id = :id";
         $stmt = $this->db->prepare($sql);
         $stmt->bindParam(':id', $id, PDO::PARAM_INT);
         $stmt->execute();
@@ -181,15 +172,22 @@ class Evidencija {
             return false;
         }
 
-        // --- POČETAK IZMENE ---
-        // U upit je dodat 'kp.kontrolni_alat_nacin' da povučemo podatak o alatu
-        $sqlRezultati = "SELECT rke.*, kp.redni_broj_karakteristike, kp.kontrolni_alat_nacin, gkp.naziv_grupe 
-                         FROM rezultati_karakteristika_evidencije rke 
-                         LEFT JOIN karakteristike_plana kp ON rke.karakteristika_plana_id = kp.id 
-                         LEFT JOIN grupe_karakteristika_plana gkp ON kp.grupa_karakteristika_id = gkp.id 
-                         WHERE rke.evidencija_kontrole_id = :id 
-                         ORDER BY gkp.redosled_prikaza ASC, kp.redni_broj_karakteristike ASC";
-        // --- KRAJ IZMENE ---
+        if (!empty($evidencija['plan_kontrole_id'])) {
+            $planKontroleModel = new PlanKontrole($this->db);
+            $evidencija['plan'] = $planKontroleModel->getPlanByIdWithDetails($evidencija['plan_kontrole_id']);
+        } else {
+            $evidencija['plan'] = null;
+        }
+        
+        $sqlRezultati = "SELECT rke.*, 
+                                kp.redni_broj_karakteristike, 
+                                kp.kontrolni_alat_nacin, 
+                                gkp.naziv_grupe 
+                        FROM rezultati_karakteristika_evidencije rke 
+                        LEFT JOIN karakteristike_plana kp ON rke.karakteristika_plana_id = kp.id 
+                        LEFT JOIN grupe_karakteristika_plana gkp ON kp.grupa_karakteristika_id = gkp.id 
+                        WHERE rke.evidencija_kontrole_id = :id 
+                        ORDER BY gkp.redosled_prikaza ASC, kp.redni_broj_karakteristike ASC";
         
         $stmtRezultati = $this->db->prepare($sqlRezultati);
         $stmtRezultati->bindParam(':id', $id, PDO::PARAM_INT);
@@ -205,19 +203,50 @@ class Evidencija {
         return $evidencija;
     }
 
+    public function findByProductDetails($ident, $serijskiBroj) {
+        $sql = "SELECT id, product_kataloska_oznaka_sken, datum_vreme_ispitivanja 
+                FROM evidencije_kontrole 
+                WHERE product_ident_sken = :ident AND product_serijski_broj_sken = :serijski
+                ORDER BY datum_vreme_ispitivanja DESC
+                LIMIT 1";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([
+            ':ident' => $ident,
+            ':serijski' => $serijskiBroj
+        ]);
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+    
+    public function deleteById($id) {
+        try {
+            $stmt = $this->db->prepare("DELETE FROM evidencije_kontrole WHERE id = :id");
+            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+            return $stmt->execute();
+        } catch (PDOException $e) {
+            error_log("Greška u Evidencija::deleteById: " . $e->getMessage());
+            return false;
+        }
+    }
+
     public function getTotalCountForUser($kontrolorId, $searchParams = []) {
         $sql = "SELECT COUNT(id) FROM evidencije_kontrole WHERE kontrolor_id = :kontrolor_id";
-        $whereClauses = [];
-        $params = [':kontrolor_id' => $kontrolorId];
-        if (!empty($searchParams['ident'])) { $whereClauses[] = "product_ident_sken LIKE :ident"; $params[':ident'] = '%' . $searchParams['ident'] . '%'; }
-        if (!empty($searchParams['kataloska'])) { $whereClauses[] = "product_kataloska_oznaka_sken LIKE :kataloska"; $params[':kataloska'] = '%' . $searchParams['kataloska'] . '%'; }
-        if (!empty($searchParams['serijski'])) { $whereClauses[] = "product_serijski_broj_sken LIKE :serijski"; $params[':serijski'] = '%' . $searchParams['serijski'] . '%'; }
-        if (!empty($whereClauses)) {
-            $sql .= " AND " . implode(" AND ", $whereClauses);
+        
+        if (!empty($searchParams['query'])) {
+            $sql .= " AND (product_ident_sken LIKE :query_ident OR product_kataloska_oznaka_sken LIKE :query_kat OR product_serijski_broj_sken LIKE :query_ser)";
         }
+
         try {
             $stmt = $this->db->prepare($sql);
-            $stmt->execute($params);
+            $stmt->bindParam(':kontrolor_id', $kontrolorId, PDO::PARAM_INT);
+            
+            if (!empty($searchParams['query'])) {
+                $queryWithWildcards = '%' . $searchParams['query'] . '%';
+                $stmt->bindParam(':query_ident', $queryWithWildcards, PDO::PARAM_STR);
+                $stmt->bindParam(':query_kat', $queryWithWildcards, PDO::PARAM_STR);
+                $stmt->bindParam(':query_ser', $queryWithWildcards, PDO::PARAM_STR);
+            }
+            
+            $stmt->execute();
             return (int) $stmt->fetchColumn();
         } catch (PDOException $e) {
             error_log("Greška u Evidencija::getTotalCountForUser: " . $e->getMessage());
@@ -227,21 +256,28 @@ class Evidencija {
 
     public function getAllForUser($kontrolorId, $searchParams = [], $limit = 15, $offset = 0) {
         $sql = "SELECT * FROM evidencije_kontrole WHERE kontrolor_id = :kontrolor_id";
-        $whereClauses = [];
-        $params = [':kontrolor_id' => $kontrolorId];
-        if (!empty($searchParams['ident'])) { $whereClauses[] = "product_ident_sken LIKE :ident"; $params[':ident'] = '%' . $searchParams['ident'] . '%'; }
-        if (!empty($searchParams['kataloska'])) { $whereClauses[] = "product_kataloska_oznaka_sken LIKE :kataloska"; $params[':kataloska'] = '%' . $searchParams['kataloska'] . '%'; }
-        if (!empty($searchParams['serijski'])) { $whereClauses[] = "product_serijski_broj_sken LIKE :serijski"; $params[':serijski'] = '%' . $searchParams['serijski'] . '%'; }
-        if (!empty($whereClauses)) {
-            $sql .= " AND " . implode(" AND ", $whereClauses);
+
+        if (!empty($searchParams['query'])) {
+            $sql .= " AND (product_ident_sken LIKE :query_ident OR product_kataloska_oznaka_sken LIKE :query_kat OR product_serijski_broj_sken LIKE :query_ser)";
         }
+
         $sql .= " ORDER BY datum_vreme_ispitivanja DESC LIMIT :limit OFFSET :offset";
+        
         try {
             $stmt = $this->db->prepare($sql);
-            foreach ($params as $key => &$val) { $stmt->bindParam($key, $val, PDO::PARAM_STR); }
+
             $stmt->bindParam(':kontrolor_id', $kontrolorId, PDO::PARAM_INT);
+            
+            if (!empty($searchParams['query'])) {
+                $queryWithWildcards = '%' . $searchParams['query'] . '%';
+                $stmt->bindParam(':query_ident', $queryWithWildcards, PDO::PARAM_STR);
+                $stmt->bindParam(':query_kat', $queryWithWildcards, PDO::PARAM_STR);
+                $stmt->bindParam(':query_ser', $queryWithWildcards, PDO::PARAM_STR);
+            }
+            
             $stmt->bindParam(':limit', $limit, PDO::PARAM_INT);
             $stmt->bindParam(':offset', $offset, PDO::PARAM_INT);
+            
             $stmt->execute();
             return $stmt->fetchAll(PDO::FETCH_ASSOC);
         } catch (PDOException $e) {
@@ -250,48 +286,81 @@ class Evidencija {
         }
     }
 
+    /**
+     * ===== METODA ZA ADMINA (ISPRAVLJENA) =====
+     */
     public function getTotalRecordCount($searchParams = []) {
         $sql = "SELECT COUNT(e.id) FROM evidencije_kontrole e LEFT JOIN korisnici u ON e.kontrolor_id = u.id";
         $whereClauses = [];
         $params = [];
-        if (!empty($searchParams['ident'])) { $whereClauses[] = "e.product_ident_sken LIKE :ident"; $params[':ident'] = '%' . $searchParams['ident'] . '%'; }
-        if (!empty($searchParams['kataloska'])) { $whereClauses[] = "e.product_kataloska_oznaka_sken LIKE :kataloska"; $params[':kataloska'] = '%' . $searchParams['kataloska'] . '%'; }
-        if (!empty($searchParams['serijski'])) { $whereClauses[] = "e.product_serijski_broj_sken LIKE :serijski"; $params[':serijski'] = '%' . $searchParams['serijski'] . '%'; }
-        if (!empty($searchParams['kontrolor'])) { $whereClauses[] = "CONCAT(u.ime, ' ', u.prezime) LIKE :kontrolor"; $params[':kontrolor'] = '%' . $searchParams['kontrolor'] . '%'; }
+
+        if (!empty($searchParams['query'])) {
+            $whereClauses[] = "(e.product_ident_sken LIKE :query_ident OR e.product_kataloska_oznaka_sken LIKE :query_kat OR e.product_serijski_broj_sken LIKE :query_ser)";
+            $queryWithWildcards = '%' . $searchParams['query'] . '%';
+            $params[':query_ident'] = $queryWithWildcards;
+            $params[':query_kat'] = $queryWithWildcards;
+            $params[':query_ser'] = $queryWithWildcards;
+        }
+
+        if (!empty($searchParams['kontrolor'])) {
+            $whereClauses[] = "CONCAT(u.ime, ' ', u.prezime) LIKE :kontrolor";
+            $params[':kontrolor'] = '%' . $searchParams['kontrolor'] . '%';
+        }
+
         if (!empty($whereClauses)) {
             $sql .= " WHERE " . implode(" AND ", $whereClauses);
         }
+
         try {
             $stmt = $this->db->prepare($sql);
             $stmt->execute($params);
             return (int) $stmt->fetchColumn();
         } catch (PDOException $e) {
-            error_log("Greška u Evidencija::getTotalRecordCount: " . $e->getMessage());
+            error_log("Greška u Evidencija::getTotalRecordCount (admin): " . $e->getMessage());
             return 0;
         }
     }
 
+    /**
+     * ===== METODA ZA ADMINA (ISPRAVLJENA) =====
+     */
     public function getAllRecords($searchParams = [], $limit = 15, $offset = 0) {
         $sql = "SELECT e.*, CONCAT(u.ime, ' ', u.prezime) as kontrolor_puno_ime FROM evidencije_kontrole e LEFT JOIN korisnici u ON e.kontrolor_id = u.id";
         $whereClauses = [];
         $params = [];
-        if (!empty($searchParams['ident'])) { $whereClauses[] = "e.product_ident_sken LIKE :ident"; $params[':ident'] = '%' . $searchParams['ident'] . '%'; }
-        if (!empty($searchParams['kataloska'])) { $whereClauses[] = "e.product_kataloska_oznaka_sken LIKE :kataloska"; $params[':kataloska'] = '%' . $searchParams['kataloska'] . '%'; }
-        if (!empty($searchParams['serijski'])) { $whereClauses[] = "e.product_serijski_broj_sken LIKE :serijski"; $params[':serijski'] = '%' . $searchParams['serijski'] . '%'; }
-        if (!empty($searchParams['kontrolor'])) { $whereClauses[] = "CONCAT(u.ime, ' ', u.prezime) LIKE :kontrolor"; $params[':kontrolor'] = '%' . $searchParams['kontrolor'] . '%'; }
+
+        if (!empty($searchParams['query'])) {
+            $whereClauses[] = "(e.product_ident_sken LIKE :query_ident OR e.product_kataloska_oznaka_sken LIKE :query_kat OR e.product_serijski_broj_sken LIKE :query_ser)";
+            $queryWithWildcards = '%' . $searchParams['query'] . '%';
+            $params[':query_ident'] = $queryWithWildcards;
+            $params[':query_kat'] = $queryWithWildcards;
+            $params[':query_ser'] = $queryWithWildcards;
+        }
+
+        if (!empty($searchParams['kontrolor'])) {
+            $whereClauses[] = "CONCAT(u.ime, ' ', u.prezime) LIKE :kontrolor";
+            $params[':kontrolor'] = '%' . $searchParams['kontrolor'] . '%';
+        }
+
         if (!empty($whereClauses)) {
             $sql .= " WHERE " . implode(" AND ", $whereClauses);
         }
+
         $sql .= " ORDER BY e.datum_vreme_ispitivanja DESC LIMIT :limit OFFSET :offset";
+        
         try {
             $stmt = $this->db->prepare($sql);
-            foreach ($params as $key => &$val) { $stmt->bindParam($key, $val, PDO::PARAM_STR); }
-            $stmt->bindParam(':limit', $limit, PDO::PARAM_INT);
-            $stmt->bindParam(':offset', $offset, PDO::PARAM_INT);
+            
+            foreach ($params as $key => $val) {
+                $stmt->bindValue($key, $val);
+            }
+            $stmt->bindValue(':limit', (int)$limit, PDO::PARAM_INT);
+            $stmt->bindValue(':offset', (int)$offset, PDO::PARAM_INT);
+            
             $stmt->execute();
             return $stmt->fetchAll(PDO::FETCH_ASSOC);
         } catch (PDOException $e) {
-            error_log("Greška u Evidencija::getAllRecords: " . $e->getMessage());
+            error_log("Greška u Evidencija::getAllRecords (admin): " . $e->getMessage());
             return [];
         }
     }
@@ -325,9 +394,6 @@ class Evidencija {
         }
     }
 
-    /**
-     * Broji sve evidencije unete danas.
-     */
     public function countTodayRecords() {
         date_default_timezone_set('Europe/Belgrade');
         $danasnji_datum = date('Y-m-d');
@@ -344,9 +410,6 @@ class Evidencija {
         }
     }
 
-    /**
-     * Broji sve evidencije unete u tekućem mesecu.
-     */
     public function countThisMonthRecords() {
         date_default_timezone_set('Europe/Belgrade');
         $godina = date('Y');
@@ -366,18 +429,47 @@ class Evidencija {
     }
 
     public function getLatestRecords($limit = 5) {
-        $sql = "SELECT e.id, e.product_naziv_sken, e.product_kataloska_oznaka_sken, e.datum_vreme_ispitivanja, CONCAT(u.ime, ' ', u.prezime) as kontrolor_puno_ime
+    $sql = "SELECT 
+                e.id, 
+                e.product_naziv_sken, 
+                e.product_kataloska_oznaka_sken, 
+                e.product_serijski_broj_sken, -- DODATO
+                e.vrsta_kontrole,             -- DODATO
+                e.datum_vreme_ispitivanja, 
+                CONCAT(u.ime, ' ', u.prezime) as kontrolor_puno_ime
+            FROM evidencije_kontrole e
+            LEFT JOIN korisnici u ON e.kontrolor_id = u.id
+            ORDER BY e.id DESC
+            LIMIT :limit";
+    try {
+        $stmt = $this->db->prepare($sql);
+        $stmt->bindParam(':limit', $limit, PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (PDOException $e) {
+        error_log("Greška u Evidencija::getLatestRecords: " . $e->getMessage());
+        return [];
+        }
+    }
+
+    public function getHistoryForProduct($ident, $serijskiBroj, $excludeId) {
+        $sql = "SELECT e.id, e.datum_vreme_ispitivanja, e.vrsta_kontrole, CONCAT(u.ime, ' ', u.prezime) as kontrolor_puno_ime
                 FROM evidencije_kontrole e
                 LEFT JOIN korisnici u ON e.kontrolor_id = u.id
-                ORDER BY e.id DESC
-                LIMIT :limit";
+                WHERE e.product_ident_sken = :ident
+                  AND e.product_serijski_broj_sken = :serijski
+                  AND e.id != :exclude_id
+                ORDER BY e.datum_vreme_ispitivanja DESC";
         try {
             $stmt = $this->db->prepare($sql);
-            $stmt->bindParam(':limit', $limit, PDO::PARAM_INT);
-            $stmt->execute();
+            $stmt->execute([
+                ':ident' => $ident,
+                ':serijski' => $serijskiBroj,
+                ':exclude_id' => $excludeId
+            ]);
             return $stmt->fetchAll(PDO::FETCH_ASSOC);
         } catch (PDOException $e) {
-            error_log("Greška u Evidencija::getLatestRecords: " . $e->getMessage());
+            error_log("Greška u Evidencija::getHistoryForProduct: " . $e->getMessage());
             return [];
         }
     }

@@ -73,6 +73,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         case 'admin_user_delete': $userController->delete($id); exit;
         case 'admin_plan_delete': $planKontroleController->delete($id); exit;
         case 'get_plan_details': $planKontroleController->getPlanForAjax(); exit;
+        case 'check_existing_record': $evidencijaController->checkExistingRecord(); exit;
         case 'evidencija_delete': $evidencijaController->delete($id); exit;
         case 'generate_single_report': $reportController->generateSingleReport($id); exit;
         case 'generate_plan_pdf': $reportController->generatePlanReport($id); exit;
@@ -95,14 +96,34 @@ if ($page === null) {
 $view_file_path = '';
 $data_for_view = [];
 $redirect_url_on_auth_fail = rtrim(APP_URL, '/') . '/public/index.php?page=login';
+
+// ===== KONAČNA ISPRAVKA LOGIKE ZA AUTORIZACIJU =====
 function isAdminPage($pageName) { return strpos((string)$pageName, 'admin_') === 0; }
 if (isAdminPage($page)) {
-    if (!isset($_SESSION['logged_in']) || !$_SESSION['logged_in'] || $_SESSION['user_uloga'] !== 'administrator') {
-        $_SESSION['error_message'] = 'Nemate dozvolu za pristup ovoj stranici.';
+    // Proveravamo da li je korisnik ulogovan
+    if (!isset($_SESSION['logged_in']) || !$_SESSION['logged_in']) {
+        $_SESSION['error_message'] = 'Morate biti prijavljeni za pristup.';
         header('Location: ' . $redirect_url_on_auth_fail);
         exit;
     }
+
+    // Proveravamo uloge. Pravimo izuzetak za 'ostali' da mogu da vide 'admin_evidencije'
+    $user_role = $_SESSION['user_uloga'] ?? '';
+    $isAllowed = false;
+
+    if ($user_role === 'administrator') {
+        $isAllowed = true; // Admin može sve
+    } elseif ($user_role === 'ostali' && $page === 'admin_evidencije') {
+        $isAllowed = true; // Ostali mogu samo na ovu admin stranicu
+    }
+
+    if (!$isAllowed) {
+        $_SESSION['error_message'] = 'Nemate dozvolu za pristup ovoj stranici.';
+        header('Location: ' . rtrim(APP_URL, '/') . '/public/index.php'); // Vraćamo na dashboard
+        exit;
+    }
 }
+// ===== KRAJ ISPRAVKE =====
 
 // 4. Glavni switch za prikazivanje stranica
 switch ($page) {
@@ -153,7 +174,17 @@ switch ($page) {
     case 'admin_evidencije': $data_for_view = $evidencijaController->listAll(); $view_file_path = VIEWS_PATH . '/admin/evidencije/list.php'; break;
     case 'admin_reports': $data_for_view = $reportController->showReportForm(); $view_file_path = VIEWS_PATH . '/admin/izvestaji/form.php'; break;
     case 'kontrolor_biraj_vrstu': if (!isset($_SESSION['logged_in']) || !in_array($_SESSION['user_uloga'], ['kontrolor', 'administrator'])) { $_SESSION['error_message'] = 'Nemate dozvolu.'; header('Location: ' . $redirect_url_on_auth_fail); exit; } $view_file_path = VIEWS_PATH . '/kontrolor/biraj_vrstu.php'; break;
-    case 'kontrolor_novi_zapis': if (!isset($_SESSION['logged_in']) || !in_array($_SESSION['user_uloga'], ['kontrolor', 'administrator'])) { $_SESSION['error_message'] = 'Nemate dozvolu.'; header('Location: ' . $redirect_url_on_auth_fail); exit; } if (!isset($_GET['vrsta']) || !in_array($_GET['vrsta'], ['redovna_kontrola', 'kontrola_pre_isporuke'])) { $_SESSION['error_message'] = 'Nije definisana validna vrsta kontrole.'; header('Location: ' . rtrim(APP_URL, '/') . '/public/index.php?page=kontrolor_biraj_vrstu'); exit; } $data_for_view = $evidencijaController->create(); $view_file_path = VIEWS_PATH . '/kontrolor/evidencija/form.php'; break;
+    
+    case 'kontrolor_novi_zapis': 
+        if (!isset($_SESSION['logged_in']) || !in_array($_SESSION['user_uloga'], ['kontrolor', 'administrator'])) { 
+            $_SESSION['error_message'] = 'Nemate dozvolu.'; 
+            header('Location: ' . $redirect_url_on_auth_fail); 
+            exit; 
+        } 
+        $data_for_view = $evidencijaController->create(); 
+        $view_file_path = VIEWS_PATH . '/kontrolor/evidencija/form.php'; 
+        break;
+        
     case 'kontrolor_moji_zapisi': if (!isset($_SESSION['logged_in']) || !in_array($_SESSION['user_uloga'], ['kontrolor', 'administrator'])) { $_SESSION['error_message'] = 'Nemate dozvolu.'; header('Location: ' . $redirect_url_on_auth_fail); exit; } $data_for_view = $evidencijaController->index(); $view_file_path = VIEWS_PATH . '/kontrolor/evidencija/list.php'; break;
     case 'kontrolor_zapis_show': if (!isset($_SESSION['logged_in'])) { $_SESSION['error_message'] = 'Morate biti prijavljeni.'; header('Location: ' . $redirect_url_on_auth_fail); exit; } $data_for_view = $evidencijaController->show($id); $view_file_path = VIEWS_PATH . '/kontrolor/evidencija/show.php'; break;
     case 'kontrolor_zapis_edit': if (!isset($_SESSION['logged_in']) || !in_array($_SESSION['user_uloga'], ['kontrolor', 'administrator'])) { $_SESSION['error_message'] = 'Nemate dozvolu.'; header('Location: ' . $redirect_url_on_auth_fail); exit; } $data_for_view = $evidencijaController->edit($id); $view_file_path = VIEWS_PATH . '/kontrolor/evidencija/form.php'; break;
@@ -167,16 +198,16 @@ switch ($page) {
         $view_file_path = VIEWS_PATH . '/ostali/pregled_ispitivanja/list.php';
         break;
 
-        case 'pregled_planova':
-        if (!isset($_SESSION['logged_in'])) { /* ... greška ... */ }
+    case 'pregled_planova':
+        if (!isset($_SESSION['logged_in'])) { $_SESSION['error_message'] = 'Morate biti prijavljeni.'; header('Location: ' . $redirect_url_on_auth_fail); exit; }
         $data_for_view = $planKontroleController->index();
         $view_file_path = VIEWS_PATH . '/ostali/planovi/list.php';
         break;
     
     case 'pregled_plana_detalji':
-        if (!isset($_SESSION['logged_in'])) { /* ... greška ... */ }
+        if (!isset($_SESSION['logged_in'])) { $_SESSION['error_message'] = 'Morate biti prijavljeni.'; header('Location: ' . $redirect_url_on_auth_fail); exit; }
         $data_for_view = $planKontroleController->show($id);
-        $view_file_path = VIEWS_PATH . '/admin/planovi_kontrole/show.php'; // Koristimo isti view
+        $view_file_path = VIEWS_PATH . '/admin/planovi_kontrole/show.php';
         break;
 
     default:

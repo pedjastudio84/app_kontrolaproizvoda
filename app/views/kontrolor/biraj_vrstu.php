@@ -4,12 +4,6 @@ if (!defined('PAGE_TITLE')) {
 }
 ?>
 <div class="container text-center">
-    <nav aria-label="breadcrumb">
-        <ol class="breadcrumb">
-            <li class="breadcrumb-item"><a href="<?php echo rtrim(APP_URL, '/'); ?>/public/index.php?page=kontrolor_dashboard">Kontrolna tabla</a></li>
-            <li class="breadcrumb-item active" aria-current="page">Odabir vrste</li>
-        </ol>
-    </nav>
 
     <h1 class="mb-4"><?php echo htmlspecialchars(PAGE_TITLE); ?></h1>
     <p class="lead">Molimo izaberite vrstu kontrole koju želite da evidentirate.</p>
